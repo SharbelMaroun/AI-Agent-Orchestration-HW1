@@ -47,6 +47,45 @@ def _build_diff_summary(diff: dict[str, Any]) -> html.Div:
     ], style={"padding": "8px", "background": "#f1f5f9", "borderRadius": "6px"})
 
 
+def toggle_wave_fn(enabled: list[str]) -> tuple[dict, dict]:
+    on = bool(enabled)
+    ctrl = {} if on else {"display": "none"}
+    panel = {"padding": "8px", "marginBottom": "4px", "borderRadius": "6px",
+             "opacity": "1" if on else "0.55",
+             "background": "rgba(238,242,255,0.3)" if on else "#f8fafc"}
+    return ctrl, panel
+
+
+def toggle_sr_fn(dots: list[str]) -> dict:
+    return {"display": "block"} if dots else {"display": "none"}
+
+
+def update_vector_fn(i: int, dots: list[str], sr: float, freq: float, amp: float, phase: float) -> Any:
+    if not dots:
+        return []
+    sr_i, freq_f, amp_f, phase_f = int(sr or 1), float(freq or 0.5), float(amp or 0), float(phase or 0)
+    n_s = sr_i * 10 + 1
+    spans = [
+        html.Span(f"{amp_f * math.sin(2 * math.pi * freq_f * n / sr_i + phase_f):.1f} ",
+                  title=f"n={n} t={n / sr_i:.2f}s",
+                  style={"color": COLORS[i], "fontFamily": "monospace", "fontSize": "0.7rem"})
+        for n in range(min(n_s, 50))
+    ]
+    return html.Div([html.P(f"y[n], n = 0…{min(n_s,50)-1}", style={"margin": "0 0 2px"}), *spans],
+                    style={"background": "#0f172a", "color": "#e2e8f0", "padding": "4px", "borderRadius": "4px"})
+
+
+def reset_cb_fn(_: Any) -> list[Any]:
+    return (
+        [DEFAULTS[i]["frequency"] for i in range(4)] +
+        [DEFAULTS[i]["amplitude"] for i in range(4)] +
+        [DEFAULTS[i]["phase"] for i in range(4)] +
+        [["on"] for _ in range(4)] +
+        [[] for _ in range(4)] +
+        [DEFAULTS[i]["sampling_rate"] for i in range(4)]
+    )
+
+
 def register_server_callbacks(app: Any, gatekeeper: Any) -> None:
     for i in range(4):
         _register_toggle_wave(app, i)
@@ -70,15 +109,8 @@ def register_server_callbacks(app: Any, gatekeeper: Any) -> None:
         Input("reset-btn", "n_clicks"),
         prevent_initial_call=True,
     )
-    def reset_cb(_: Any) -> list[Any]:
-        return (
-            [DEFAULTS[i]["frequency"] for i in range(4)] +
-            [DEFAULTS[i]["amplitude"] for i in range(4)] +
-            [DEFAULTS[i]["phase"] for i in range(4)] +
-            [["on"] for _ in range(4)] +
-            [[] for _ in range(4)] +
-            [DEFAULTS[i]["sampling_rate"] for i in range(4)]
-        )
+    def reset_cb(n: Any) -> list[Any]:
+        return reset_cb_fn(n)
 
     _register_identify(app, gatekeeper)
 
@@ -89,12 +121,7 @@ def _register_toggle_wave(app: Any, i: int) -> None:
         Input(f"enabled-{i}", "value"),
     )
     def toggle_wave(enabled: list[str]) -> tuple[dict, dict]:
-        on = bool(enabled)
-        ctrl = {} if on else {"display": "none"}
-        panel = {"padding": "8px", "marginBottom": "4px", "borderRadius": "6px",
-                 "opacity": "1" if on else "0.55",
-                 "background": "rgba(238,242,255,0.3)" if on else "#f8fafc"}
-        return ctrl, panel
+        return toggle_wave_fn(enabled)
 
 
 def _register_toggle_sr(app: Any, i: int) -> None:
@@ -103,7 +130,7 @@ def _register_toggle_sr(app: Any, i: int) -> None:
         Input(f"dots-{i}", "value"),
     )
     def toggle_sr(dots: list[str]) -> dict:
-        return {"display": "block"} if dots else {"display": "none"}
+        return toggle_sr_fn(dots)
 
 
 def _register_update_vector(app: Any, i: int) -> None:
@@ -113,18 +140,7 @@ def _register_update_vector(app: Any, i: int) -> None:
          Input(f"freq-{i}", "value"), Input(f"amp-{i}", "value"), Input(f"phase-{i}", "value")],
     )
     def update_vector(dots: list[str], sr: float, freq: float, amp: float, phase: float) -> Any:
-        if not dots:
-            return []
-        sr_i, freq_f, amp_f, phase_f = int(sr or 1), float(freq or 0.5), float(amp or 0), float(phase or 0)
-        n_s = sr_i * 10 + 1
-        spans = [
-            html.Span(f"{amp_f * math.sin(2 * math.pi * freq_f * n / sr_i + phase_f):.1f} ",
-                      title=f"n={n} t={n / sr_i:.2f}s",
-                      style={"color": COLORS[i], "fontFamily": "monospace", "fontSize": "0.7rem"})
-            for n in range(min(n_s, 50))
-        ]
-        return html.Div([html.P(f"y[n], n = 0…{min(n_s,50)-1}", style={"margin": "0 0 2px"}), *spans],
-                        style={"background": "#0f172a", "color": "#e2e8f0", "padding": "4px", "borderRadius": "4px"})
+        return update_vector_fn(i, dots, sr, freq, amp, phase)
 
 
 def _register_identify(app: Any, gatekeeper: Any) -> None:

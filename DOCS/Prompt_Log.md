@@ -335,4 +335,33 @@ A full audit of the project against INSTRUCTIONS.md revealed multiple critical v
 
 ---
 
+### [ENTRY-009] — Phase 14: Integration Tests
+**Date:** 2026-05-01
+**Model:** claude-sonnet-4-6
+**File(s) affected:**
+- `fourier-neural-decoder/tests/integration/test_full_identify_flow.py` (new)
+- `fourier-neural-decoder/tests/integration/test_system.py` (new)
+- `fourier-neural-decoder/tests/integration/test_ui_callbacks.py` (new)
+- `fourier-neural-decoder/src/fourier/ui/callbacks_server.py` (refactored)
+
+#### Context
+Phase 14 of the TODO required a full integration test suite covering end-to-end flows (RNN, LSTM, Both modes), boundary conditions, gatekeeper retry logic, hardcoding scans, and UI callback logic. Three test files were provided as untracked stubs. `test_ui_callbacks.py` imported pure functions (`toggle_wave_fn`, `toggle_sr_fn`, `update_vector_fn`, `reset_cb_fn`) that did not exist — all logic was buried inside Dash-registered closures and untestable in isolation.
+
+#### Prompt (final version used)
+> "can you check the todo file and see what we should implement now? check that and implement the next phase"
+
+#### Refinements
+1. Identified that `callbacks_server.py` registered all logic inside inner `_register_*` functions — no pure functions were importable for unit testing.
+2. Extracted `toggle_wave_fn`, `toggle_sr_fn`, `update_vector_fn`, `reset_cb_fn` as module-level pure functions.
+3. Updated each `_register_*` inner function to delegate to the corresponding pure function.
+4. All 17 integration tests passed on first run after the refactor.
+
+#### Accepted Output Summary
+- **`test_full_identify_flow.py`**: 9 tests — RNN/LSTM/Both end-to-end pipelines, boundary windows (t=0, t=9), zero-signal (all channels disabled), noise sigma impact, out-of-range noise, gatekeeper retry count.
+- **`test_system.py`**: 3 tests — missing config raises `FileNotFoundError`, version consistency placeholder, no-hardcoded-values grep scan across `src/fourier/`.
+- **`test_ui_callbacks.py`**: 5 tests — reset returns 24 correct defaults, noise label mapping (Clean/Light/Medium/Heavy), toggle wave enabled/disabled styles, toggle sr show/hide, update_vector dots-off returns `[]` / dots-on returns `html.Div`.
+- **`callbacks_server.py`**: Refactored to expose 4 pure functions; registered callbacks now delegate to them. Zero ruff violations. 226 total tests passing.
+
+---
+
 *Add new entries below as development progresses.*
