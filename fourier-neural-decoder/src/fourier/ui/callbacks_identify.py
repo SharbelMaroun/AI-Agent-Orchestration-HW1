@@ -39,12 +39,12 @@ def _run_identify(gatekeeper: Any, window_start: Any, noise_sigma: Any, algo: st
 
     def run_rnn():
         from fourier.sdk.rnn_classifier import RNNClassifier
-        clf = RNNClassifier({"hidden_size": 64, "num_layers": 1, "weights_path": app_cfg["rnn_model_path"]})
-        return clf.process(window)
+        rnn_cfg = {**app_cfg.get("rnn_config", {}), "weights_path": app_cfg["rnn_model_path"]}
+        return RNNClassifier(rnn_cfg).process(window)
 
     def run_lstm():
         from fourier.sdk.lstm_classifier import LSTMClassifier
-        lstm_cfg = {"hidden_size": 128, "num_layers": 2, "dropout": 0.3, "weights_path": app_cfg["lstm_model_path"]}
+        lstm_cfg = {**app_cfg.get("lstm_config", {}), "weights_path": app_cfg["lstm_model_path"]}
         return LSTMClassifier(lstm_cfg).process(window)
 
     if algo == "RNN":

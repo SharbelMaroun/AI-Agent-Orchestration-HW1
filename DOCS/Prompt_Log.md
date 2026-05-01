@@ -472,4 +472,33 @@ A review of the TODO found ~60 unchecked items across Phases 10–14. Most were 
 
 ---
 
+### [ENTRY-014] — Code Review Fixes (5 issues)
+**Date:** 2026-05-02
+**Model:** claude-sonnet-4-6
+**File(s) affected:**
+- `fourier-neural-decoder/src/fourier/gatekeeper.py`
+- `fourier-neural-decoder/src/fourier/sdk/rnn_classifier.py`
+- `fourier-neural-decoder/src/fourier/sdk/lstm_classifier.py`
+- `fourier-neural-decoder/src/fourier/ui/callbacks_identify.py`
+- `fourier-neural-decoder/config/app_config.json`
+- `fourier-neural-decoder/config/training_config.json`
+- `fourier-neural-decoder/src/fourier/services/train_models.py`
+
+#### Context
+A full code review identified 13 issues. The 5 highest-priority were implemented: timeout enforcement, log sanitization, state_dict validation, hardcoded hyperparameter removal, and training seed reproducibility.
+
+#### Prompt (final version used)
+> "yes pls" (after code review findings were presented)
+
+#### Accepted Output Summary
+- **`gatekeeper.py`**: Added `_call_with_timeout()` using `ThreadPoolExecutor` — enforces `timeout_seconds` config on every call. Sanitized log message to remove raw exception text. Kept `range(1, max_retries + 2)` — verified correct (1 initial + max_retries retries = max_retries+1 total).
+- **`rnn_classifier.py` + `lstm_classifier.py`**: Added state_dict key validation before `load_state_dict()` — raises `ValueError` with clear message if model file is corrupted or wrong architecture.
+- **`app_config.json`**: Added `rnn_config` and `lstm_config` objects containing model hyperparameters.
+- **`callbacks_identify.py`**: Removed hardcoded `hidden_size`, `num_layers`, `dropout` — now reads from `app_cfg.get("rnn_config")` / `app_cfg.get("lstm_config")`.
+- **`training_config.json`**: Added `"seed": 42` to data section.
+- **`train_models.py`**: `generate_synthetic_data()` now calls `np.random.seed()` when seed is present in config — both RNN and LSTM train on identical data.
+- **Result:** 242 tests passing · Ruff clean.
+
+---
+
 *Add new entries below as development progresses.*

@@ -25,6 +25,8 @@ def _load_training_config() -> dict[str, Any]:
 
 def generate_synthetic_data(n: int = 1000) -> tuple[np.ndarray, np.ndarray]:
     cfg = _load_training_config()["data"]
+    if "seed" in cfg:
+        np.random.seed(int(cfg["seed"]))
     freqs: list[float] = cfg["class_frequencies_hz"]
     window_pts: int = int(cfg["window_points"])
     noise_std: float = float(cfg["noise_std"])
