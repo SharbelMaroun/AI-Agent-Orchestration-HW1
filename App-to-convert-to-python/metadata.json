@@ -1,0 +1,6 @@
+{
+  "name": "Fourier Graphs",
+  "description": "An interactive playground for exploring sine waves and periodic functions through multiple customizable graphs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

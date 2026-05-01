@@ -1,0 +1,6 @@
+{
+  "max_calls_per_minute": 60,
+  "max_retries": 3,
+  "retry_delay_seconds": 0.5,
+  "timeout_seconds": 10
+}
