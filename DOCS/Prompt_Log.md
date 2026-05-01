@@ -364,4 +364,31 @@ Phase 14 of the TODO required a full integration test suite covering end-to-end 
 
 ---
 
+### [ENTRY-010] — Phase 15: Quality Gates
+**Date:** 2026-05-02
+**Model:** claude-sonnet-4-6
+**File(s) affected:**
+- `fourier-neural-decoder/src/fourier/ui/callbacks_server.py` (refactored — split)
+- `fourier-neural-decoder/src/fourier/ui/callbacks_identify.py` (new)
+- `fourier-neural-decoder/src/fourier/ui/callbacks_result.py` (new)
+
+#### Context
+Phase 15 required passing all quality gates: zero Ruff violations, ≥85% test coverage, all files ≤150 lines, no hardcoded values, `.env` in `.gitignore`, and an HTML coverage report. All gates except the 150-line rule passed immediately. `callbacks_server.py` was 198 lines — 48 over the limit.
+
+#### Prompt (final version used)
+> "continue to implement the next phase from todo, and update the DOCS directory file after that"
+
+#### Refinements
+1. Ruff and coverage (93.37%) already passing — no changes needed there.
+2. `callbacks_server.py` at 198 lines required splitting: extracted `_build_single_result_panel` and `_build_diff_summary` into `callbacks_result.py`, and the entire identify callback logic into `callbacks_identify.py`.
+3. All 226 tests still passing after the split with zero ruff violations.
+
+#### Accepted Output Summary
+- **`callbacks_result.py`**: Pure rendering helpers — `_build_single_result_panel` and `_build_diff_summary`.
+- **`callbacks_identify.py`**: `register_identify_callback(app, gatekeeper)` wires the identify Dash callback; `_run_identify(...)` contains the pure identify logic.
+- **`callbacks_server.py`**: Now 100 lines — imports from the two new modules, exposes pure functions (`toggle_wave_fn`, `toggle_sr_fn`, `update_vector_fn`, `reset_cb_fn`), and registers all callbacks via `register_server_callbacks`.
+- All quality gates: ✅ Ruff clean · ✅ 93.37% coverage · ✅ All files ≤150 lines · ✅ Zero hardcoded values · ✅ 226 tests green · ✅ `htmlcov/` generated.
+
+---
+
 *Add new entries below as development progresses.*
