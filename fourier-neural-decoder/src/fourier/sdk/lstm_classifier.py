@@ -52,6 +52,10 @@ class LSTMClassifier:
         if not path.exists():
             raise FileNotFoundError(f"Weights file not found: {path}")
         state = torch.load(path, weights_only=True)
+        expected = set(self.model.state_dict().keys())
+        missing = expected - set(state.keys())
+        if missing:
+            raise ValueError(f"Corrupted model weights — missing keys: {missing}")
         self.model.load_state_dict(state)
 
     def _build_result(self, probs_tensor: torch.Tensor) -> ClassifierResult:

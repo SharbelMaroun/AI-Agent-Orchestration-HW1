@@ -22,6 +22,16 @@ def test_main_exits_with_1_on_bad_config_key(tmp_path):
         assert exc_info.value.code == 1
 
 
+def test_main_exits_with_1_on_missing_rate_limits(tmp_path):
+    from fourier.__main__ import main
+
+    with patch("fourier.__main__.load_app_config", return_value={"host": "127.0.0.1", "port": 8050, "debug": False}), \
+         patch("fourier.__main__.load_rate_limits", side_effect=FileNotFoundError("missing")):
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 1
+
+
 def test_main_exits_with_1_on_missing_ui():
     from fourier.__main__ import main
     import sys

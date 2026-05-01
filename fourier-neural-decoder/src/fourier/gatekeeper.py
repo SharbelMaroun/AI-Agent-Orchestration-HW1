@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from typing import Any, Callable
 
 
@@ -30,17 +31,30 @@ class ModelGatekeeper:
         ts = time.strftime("%H:%M:%S")
         print(f"[{ts}] attempt={attempt} status={status}")
 
+    def _call_with_timeout(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
+        timeout = float(self.config["timeout_seconds"])
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(fn, *args, **kwargs)
+            try:
+                return future.result(timeout=timeout)
+            except FuturesTimeoutError:
+                raise RuntimeError(f"Call timed out after {timeout}s")
+
     def _execute_with_retry(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
         max_retries = int(self.config["max_retries"])
+        delay = float(self.config["retry_delay_seconds"])
         last_exc: RuntimeError | None = None
+        # 1 initial attempt + max_retries retries = max_retries + 1 total
         for attempt in range(1, max_retries + 2):
             try:
-                result = fn(*args, **kwargs)
+                result = self._call_with_timeout(fn, *args, **kwargs)
                 self._log_call(attempt, "success")
                 return result
             except RuntimeError as exc:
                 last_exc = exc
-                self._log_call(attempt, f"retry {attempt}: {exc}")
+                self._log_call(attempt, f"retry {attempt}")
+                if attempt <= max_retries:
+                    time.sleep(delay)
         print(f"Failed after {max_retries} retries")
         raise last_exc  # type: ignore[misc]
 

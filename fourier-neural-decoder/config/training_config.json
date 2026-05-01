@@ -22,6 +22,7 @@
     "noise_std": 0.1,
     "class_frequencies_hz": [0.5, 1.0, 1.5, 2.0],
     "window_seconds": 1.0,
-    "window_points": 50
+    "window_points": 50,
+    "seed": 42
   }
 }

@@ -4,11 +4,13 @@
   "debug": false,
   "host": "127.0.0.1",
   "port": 8050,
-  "version": "1.00",
+  "version": "1.01",
   "window_duration": 1.0,
   "window_points": 50,
   "noise_default": 0.0,
   "noise_max": 0.5,
   "rnn_model_path": "models/rnn_classifier.pt",
-  "lstm_model_path": "models/lstm_classifier.pt"
+  "lstm_model_path": "models/lstm_classifier.pt",
+  "rnn_config": {"hidden_size": 64, "num_layers": 1},
+  "lstm_config": {"hidden_size": 128, "num_layers": 2, "dropout": 0.3}
 }

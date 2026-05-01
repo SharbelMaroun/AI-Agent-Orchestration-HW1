@@ -13,7 +13,8 @@
       "Bash(grep -E \"Miss|src\\\\\\\\\")",
       "Bash(grep -v \"^$\")",
       "Bash(wc -l *.py)",
-      "Bash(python -c 'print\\(sum\\(1 for _ in open\\('\\\\''__TRACKED_VAR__'\\\\''\\)\\)\\)')"
+      "Bash(python -c 'print\\(sum\\(1 for _ in open\\('\\\\''__TRACKED_VAR__'\\\\''\\)\\)\\)')",
+      "Bash(gh pr *)"
     ]
   }
 }

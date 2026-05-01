@@ -6,4 +6,4 @@ def test_import_version_constant() -> None:
 
 
 def test_version_value() -> None:
-    assert VERSION == "1.00"
+    assert VERSION == "1.01"

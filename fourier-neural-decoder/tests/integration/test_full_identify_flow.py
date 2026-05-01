@@ -127,6 +127,61 @@ def test_gatekeeper_retries(configs):
 
     with pytest.raises(RuntimeError):
         gk.call(failing_fn)
-    
+
     # attempt 1 + 1 retry = 2 calls
     assert call_count == 2
+
+
+def test_single_channel_enabled(configs, gatekeeper):
+    t = np.linspace(0, 10, 501)
+    y = 50 * np.sin(2 * np.pi * 0.5 * t)
+    extractor = WindowExtractor({"window_start": 1.0})
+    window = extractor.process(y)
+    rnn_cfg = {"hidden_size": 64, "num_layers": 1, "weights_path": configs["app"]["rnn_model_path"]}
+    result = gatekeeper.call(RNNClassifier(rnn_cfg).process, window)
+    assert "predicted_class" in result
+    assert 0 <= result["predicted_class"] <= 3
+
+
+def test_agreement_true_when_classifiers_match(configs, gatekeeper):
+    t = np.linspace(0, 10, 501)
+    y = 50 * np.sin(2 * np.pi * 0.5 * t)
+    extractor = WindowExtractor({"window_start": 2.0})
+    window = extractor.process(y)
+    rnn_clf = RNNClassifier({"hidden_size": 64, "num_layers": 1, "weights_path": configs["app"]["rnn_model_path"]})
+    lstm_clf = LSTMClassifier({"hidden_size": 128, "num_layers": 2, "dropout": 0.3, "weights_path": configs["app"]["lstm_model_path"]})
+    rnn_r = gatekeeper.call(rnn_clf.process, window)
+    lstm_r = gatekeeper.call(lstm_clf.process, window)
+    if rnn_r["predicted_class"] == lstm_r["predicted_class"]:
+        diff = ResultComparator({}).process(rnn_r, lstm_r)
+        assert diff["agreement"] is True
+
+
+def test_agreement_false_when_classifiers_disagree():
+    from fourier.shared.constants import WAVE_NAMES
+    from fourier.shared.types import ClassifierResult
+
+    def make_result(cls: int) -> ClassifierResult:
+        probs = [0.0, 0.0, 0.0, 0.0]
+        probs[cls] = 0.9
+        probs[(cls + 1) % 4] = 0.1
+        return ClassifierResult(predicted_class=cls, class_name=WAVE_NAMES[cls],
+                                confidence=0.9, probabilities=probs, runner_up=(cls + 1) % 4)
+
+    diff = ResultComparator({}).process(make_result(0), make_result(1))
+    assert diff["agreement"] is False
+
+
+def test_confidence_delta_zero_when_same_confidence():
+    from fourier.shared.constants import WAVE_NAMES
+    from fourier.shared.types import ClassifierResult
+
+    def make_result(cls: int) -> ClassifierResult:
+        probs = [0.0, 0.0, 0.0, 0.0]
+        probs[cls] = 0.8
+        probs[(cls + 1) % 4] = 0.2
+        return ClassifierResult(predicted_class=cls, class_name=WAVE_NAMES[cls],
+                                confidence=0.8, probabilities=probs, runner_up=(cls + 1) % 4)
+
+    diff = ResultComparator({}).process(make_result(0), make_result(0))
+    assert diff["confidence_delta"] == pytest.approx(0.0, abs=1e-6)
