@@ -8,5 +8,7 @@
   "window_duration": 1.0,
   "window_points": 50,
   "noise_default": 0.0,
-  "noise_max": 0.5
+  "noise_max": 0.5,
+  "rnn_model_path": "models/rnn_classifier.pt",
+  "lstm_model_path": "models/lstm_classifier.pt"
 }
