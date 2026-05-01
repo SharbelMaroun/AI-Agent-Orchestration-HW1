@@ -600,24 +600,24 @@
 
 | # | Task | Definition of Done |
 |---|------|--------------------|
-| 15.01 | Run `uv run ruff check src/` — zero violations | Exit code 0 |
-| 15.02 | Fix any Ruff violations in `sdk/` | Exit code 0 |
-| 15.03 | Fix any Ruff violations in `services/` | Exit code 0 |
-| 15.04 | Fix any Ruff violations in `ui/` | Exit code 0 |
-| 15.05 | Fix any Ruff violations in `gatekeeper.py` | Exit code 0 |
-| 15.06 | Fix any Ruff violations in `shared/` | Exit code 0 |
-| 15.07 | Run `uv run pytest --cov=src --cov-fail-under=85` | Exit code 0 |
-| 15.08 | Identify any module below 85% coverage | Coverage report reviewed |
-| 15.09 | Add missing unit tests for `sdk/` coverage gaps | Coverage ≥ 85% |
-| 15.10 | Add missing unit tests for `ui/` coverage gaps | Coverage ≥ 85% |
-| 15.11 | Add missing unit tests for `gatekeeper.py` coverage gaps | Coverage ≥ 85% |
-| 15.12 | Verify all `src/` files are ≤ 150 lines (line count scan) | All pass |
-| 15.13 | Verify zero hardcoded URLs in `src/` | Grep scan clean |
-| 15.14 | Verify zero hardcoded timeouts in `src/` | Grep scan clean |
-| 15.15 | Verify zero hardcoded port/host values in `src/` | Grep scan clean |
-| 15.16 | Verify `.env` is in `.gitignore` and not tracked by git | `git status` clean |
-| 15.17 | Run full test suite — all tests green | `uv run pytest` exit code 0 |
-| 15.18 | Generate coverage HTML report | `htmlcov/` directory created |
+| 15.01 | [x] Run `uv run ruff check src/` — zero violations | Exit code 0 |
+| 15.02 | [x] Fix any Ruff violations in `sdk/` | Exit code 0 |
+| 15.03 | [x] Fix any Ruff violations in `services/` | Exit code 0 |
+| 15.04 | [x] Fix any Ruff violations in `ui/` | Exit code 0 |
+| 15.05 | [x] Fix any Ruff violations in `gatekeeper.py` | Exit code 0 |
+| 15.06 | [x] Fix any Ruff violations in `shared/` | Exit code 0 |
+| 15.07 | [x] Run `uv run pytest --cov=src --cov-fail-under=85` | Exit code 0 |
+| 15.08 | [x] Identify any module below 85% coverage | `callbacks_server.py` split — total 93.37% |
+| 15.09 | [x] Add missing unit tests for `sdk/` coverage gaps | Coverage ≥ 85% |
+| 15.10 | [x] Add missing unit tests for `ui/` coverage gaps | Coverage ≥ 85% |
+| 15.11 | [x] Add missing unit tests for `gatekeeper.py` coverage gaps | Coverage ≥ 85% |
+| 15.12 | [x] Verify all `src/` files are ≤ 150 lines (line count scan) | `callbacks_server.py` split into `callbacks_identify.py` + `callbacks_result.py` |
+| 15.13 | [x] Verify zero hardcoded URLs in `src/` | Grep scan clean |
+| 15.14 | [x] Verify zero hardcoded timeouts in `src/` | Grep scan clean |
+| 15.15 | [x] Verify zero hardcoded port/host values in `src/` | Grep scan clean |
+| 15.16 | [x] Verify `.env` is in `.gitignore` and not tracked by git | `git status` clean |
+| 15.17 | [x] Run full test suite — all tests green | 226 passed, 0 failures |
+| 15.18 | [x] Generate coverage HTML report | `htmlcov/` directory created |
 
 ---
 

@@ -335,4 +335,60 @@ A full audit of the project against INSTRUCTIONS.md revealed multiple critical v
 
 ---
 
+### [ENTRY-009] — Phase 14: Integration Tests
+**Date:** 2026-05-01
+**Model:** claude-sonnet-4-6
+**File(s) affected:**
+- `fourier-neural-decoder/tests/integration/test_full_identify_flow.py` (new)
+- `fourier-neural-decoder/tests/integration/test_system.py` (new)
+- `fourier-neural-decoder/tests/integration/test_ui_callbacks.py` (new)
+- `fourier-neural-decoder/src/fourier/ui/callbacks_server.py` (refactored)
+
+#### Context
+Phase 14 of the TODO required a full integration test suite covering end-to-end flows (RNN, LSTM, Both modes), boundary conditions, gatekeeper retry logic, hardcoding scans, and UI callback logic. Three test files were provided as untracked stubs. `test_ui_callbacks.py` imported pure functions (`toggle_wave_fn`, `toggle_sr_fn`, `update_vector_fn`, `reset_cb_fn`) that did not exist — all logic was buried inside Dash-registered closures and untestable in isolation.
+
+#### Prompt (final version used)
+> "can you check the todo file and see what we should implement now? check that and implement the next phase"
+
+#### Refinements
+1. Identified that `callbacks_server.py` registered all logic inside inner `_register_*` functions — no pure functions were importable for unit testing.
+2. Extracted `toggle_wave_fn`, `toggle_sr_fn`, `update_vector_fn`, `reset_cb_fn` as module-level pure functions.
+3. Updated each `_register_*` inner function to delegate to the corresponding pure function.
+4. All 17 integration tests passed on first run after the refactor.
+
+#### Accepted Output Summary
+- **`test_full_identify_flow.py`**: 9 tests — RNN/LSTM/Both end-to-end pipelines, boundary windows (t=0, t=9), zero-signal (all channels disabled), noise sigma impact, out-of-range noise, gatekeeper retry count.
+- **`test_system.py`**: 3 tests — missing config raises `FileNotFoundError`, version consistency placeholder, no-hardcoded-values grep scan across `src/fourier/`.
+- **`test_ui_callbacks.py`**: 5 tests — reset returns 24 correct defaults, noise label mapping (Clean/Light/Medium/Heavy), toggle wave enabled/disabled styles, toggle sr show/hide, update_vector dots-off returns `[]` / dots-on returns `html.Div`.
+- **`callbacks_server.py`**: Refactored to expose 4 pure functions; registered callbacks now delegate to them. Zero ruff violations. 226 total tests passing.
+
+---
+
+### [ENTRY-010] — Phase 15: Quality Gates
+**Date:** 2026-05-02
+**Model:** claude-sonnet-4-6
+**File(s) affected:**
+- `fourier-neural-decoder/src/fourier/ui/callbacks_server.py` (refactored — split)
+- `fourier-neural-decoder/src/fourier/ui/callbacks_identify.py` (new)
+- `fourier-neural-decoder/src/fourier/ui/callbacks_result.py` (new)
+
+#### Context
+Phase 15 required passing all quality gates: zero Ruff violations, ≥85% test coverage, all files ≤150 lines, no hardcoded values, `.env` in `.gitignore`, and an HTML coverage report. All gates except the 150-line rule passed immediately. `callbacks_server.py` was 198 lines — 48 over the limit.
+
+#### Prompt (final version used)
+> "continue to implement the next phase from todo, and update the DOCS directory file after that"
+
+#### Refinements
+1. Ruff and coverage (93.37%) already passing — no changes needed there.
+2. `callbacks_server.py` at 198 lines required splitting: extracted `_build_single_result_panel` and `_build_diff_summary` into `callbacks_result.py`, and the entire identify callback logic into `callbacks_identify.py`.
+3. All 226 tests still passing after the split with zero ruff violations.
+
+#### Accepted Output Summary
+- **`callbacks_result.py`**: Pure rendering helpers — `_build_single_result_panel` and `_build_diff_summary`.
+- **`callbacks_identify.py`**: `register_identify_callback(app, gatekeeper)` wires the identify Dash callback; `_run_identify(...)` contains the pure identify logic.
+- **`callbacks_server.py`**: Now 100 lines — imports from the two new modules, exposes pure functions (`toggle_wave_fn`, `toggle_sr_fn`, `update_vector_fn`, `reset_cb_fn`), and registers all callbacks via `register_server_callbacks`.
+- All quality gates: ✅ Ruff clean · ✅ 93.37% coverage · ✅ All files ≤150 lines · ✅ Zero hardcoded values · ✅ 226 tests green · ✅ `htmlcov/` generated.
+
+---
+
 *Add new entries below as development progresses.*

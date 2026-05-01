@@ -41,7 +41,9 @@ External Systems: None (fully self-contained; no external APIs in v1.00)
 │  │  Plotly charts      │      │  src/fourier/ui/           │    │
 │  │  Clientside JS      │      │  layout.py                 │    │
 │  │  callbacks          │      │  callbacks_client.py       │    │
-│  └─────────────────────┘      │  callbacks_server.py       │    │
+│  │                     │      │  callbacks_server.py       │    │
+│  │                     │      │  callbacks_identify.py     │    │
+│  └─────────────────────┘      │  callbacks_result.py       │    │
 │                               └──────────┬─────────────────┘    │
 │                                          │ Python calls          │
 │                               ┌──────────▼─────────────────┐    │
@@ -410,7 +412,9 @@ fourier-freq-app/
 │   ├── ui/
 │   │   ├── layout.py                (≤ 150 lines)
 │   │   ├── callbacks_client.py      (≤ 150 lines)
-│   │   └── callbacks_server.py      (≤ 150 lines)
+│   │   ├── callbacks_server.py      (≤ 150 lines)
+│   │   ├── callbacks_identify.py    (≤ 150 lines)
+│   │   └── callbacks_result.py      (≤ 150 lines)
 │   ├── shared/
 │   │   ├── version.py               — VERSION = "1.00"
 │   │   └── constants.py             — WAVE_NAMES, COLORS (loaded from config)
