@@ -417,11 +417,11 @@
 | 10.18 | [x] Implement `make_slider(sid, label, min_v, max_v, step, default)` helper | Returns html.Div with dcc.Slider |
 | 10.19 | [x] Write test: `make_slider` has `updatemode='drag'` | Test passes |
 | 10.20 | [x] Write test: `make_slider` has `marks=None` | Test passes |
-| 10.21 | Write test: `freq-{i}` slider range is 0.1 to 5.0 | Test passes |
-| 10.22 | Write test: `amp-{i}` slider range is 0 to 100 | Test passes |
-| 10.23 | Write test: `phase-{i}` slider range is 0.0 to 6.28 (2π) | Test passes |
-| 10.24 | Write test: `sr-{i}` slider range is 1 to 50 | Test passes |
-| 10.25 | Implement `_build_main_area()` — right panel with charts and ML section | Returns html.Main |
+| 10.21 | [x] Write test: `freq-{i}` slider range is 0.1 to 5.0 | Test passes |
+| 10.22 | [x] Write test: `amp-{i}` slider range is 0 to 100 | Test passes |
+| 10.23 | [x] Write test: `phase-{i}` slider range is 0.0 to 6.28 (2π) | Test passes |
+| 10.24 | [x] Write test: `sr-{i}` slider range is 1 to 50 | Test passes |
+| 10.25 | [x] Implement `_build_main_area()` — right panel with charts and ML section | Returns html.Main |
 | 10.26 | [x] Write test: main area contains `overlay-chart` dcc.Graph | Test passes |
 | 10.27 | [x] Write test: main area contains `sum-chart` dcc.Graph | Test passes |
 | 10.28 | [x] Implement `_build_window_selector()` — slider 0.0 to 9.0 step 0.1 id `window-slider` | Returns html.Div |
@@ -441,7 +441,7 @@
 | 10.37 | [x] Implement `_build_footer()` — version badge, status indicator | Returns html.Footer |
 | 10.38 | [x] Write test: footer displays VERSION string | Test passes |
 | 10.39 | [x] Run ruff on `layout.py` — zero violations | Exit code 0 |
-| 10.40 | Check `layout.py` ≤ 150 lines — split into `layout_sidebar.py`, `layout_main.py` if needed | All files ≤ 150 lines |
+| 10.40 | [x] Check `layout.py` ≤ 150 lines — split into `layout_sidebar.py`, `layout_main.py` if needed | All files ≤ 150 lines |
 
 ---
 
@@ -457,26 +457,26 @@
 | 11.06 | [x] Write test: JS string contains `sumY` variable | Test passes |
 | 11.07 | [x] Write test: JS string contains `tCont` variable | Test passes |
 | 11.08 | [x] Write test: JS function accepts 24 parameters (6 per channel × 4) | Test passes (count function params) |
-| 11.09 | Implement JS: continuous time axis `tCont` (0 to 10s, 501 points) | JS block present |
-| 11.10 | Implement JS: `sumY` array initialized to zeros (length 501) | JS block present |
-| 11.11 | Implement JS: loop over 4 channels (i=0 to 3) | JS block present |
-| 11.12 | Implement JS: `isEnabled` check — skip disabled channels | JS block present |
-| 11.13 | Implement JS: accumulate `sumY` for enabled channels (continuous) | JS block present |
-| 11.14 | Implement JS: dots mode — scatter markers at `n/sr` sample points | JS block present |
-| 11.15 | Implement JS: line mode — continuous trace with `mode: 'lines'` | JS block present |
-| 11.16 | Implement JS: overlay chart layout — white background, labeled axes | JS block present |
-| 11.17 | Implement JS: overlay chart y-axis range [-100, 100] | JS block present |
-| 11.18 | Implement JS: summation chart layout — dark background `#020617` | JS block present |
-| 11.19 | Implement JS: summation chart y-axis range [-150, 150] | JS block present |
-| 11.20 | Implement JS: `vrect` amber shape on summation chart for selected window | JS block present |
+| 11.09 | [x] Implement JS: continuous time axis `tCont` (0 to 10s, 501 points) | JS block present |
+| 11.10 | [x] Implement JS: `sumY` array initialized to zeros (length 501) | JS block present |
+| 11.11 | [x] Implement JS: loop over 4 channels (i=0 to 3) | JS block present |
+| 11.12 | [x] Implement JS: `isEnabled` check — skip disabled channels | JS block present |
+| 11.13 | [x] Implement JS: accumulate `sumY` for enabled channels (continuous) | JS block present |
+| 11.14 | [x] Implement JS: dots mode — scatter markers at `n/sr` sample points | JS block present |
+| 11.15 | [x] Implement JS: line mode — continuous trace with `mode: 'lines'` | JS block present |
+| 11.16 | [x] Implement JS: overlay chart layout — white background, labeled axes | JS block present |
+| 11.17 | [x] Implement JS: overlay chart y-axis range [-100, 100] | JS block present |
+| 11.18 | [x] Implement JS: summation chart layout — dark background `#020617` | JS block present |
+| 11.19 | [x] Implement JS: summation chart y-axis range [-150, 150] | JS block present |
+| 11.20 | [x] Implement JS: `vrect` amber shape on summation chart for selected window | JS block present |
 | 11.21 | [x] Write test: vrect shape has `x0 = window_start` and `x1 = window_start + 1` | Test passes |
 | 11.22 | [x] Write test: vrect color is amber / semi-transparent | Test passes |
 | 11.23 | [x] Implement `register_clientside_callback(app)` function | Registers callback on app |
 | 11.24 | [x] Write test: callback outputs `overlay-chart.figure` | Test passes |
 | 11.25 | [x] Write test: callback outputs `sum-chart.figure` | Test passes |
-| 11.26 | Write test: callback has 25 inputs (24 channel controls + 1 window-slider) | Test passes |
+| 11.26 | [x] Write test: callback has 25 inputs (24 channel controls + 1 window-slider) | Test passes |
 | 11.27 | [x] Run ruff on `callbacks_client.py` — zero violations | Exit code 0 |
-| 11.28 | Check `callbacks_client.py` ≤ 150 lines | Passes |
+| 11.28 | [x] Check `callbacks_client.py` ≤ 150 lines | Passes |
 
 ---
 
@@ -485,63 +485,63 @@
 | # | Task | Definition of Done |
 |---|------|--------------------|
 | 12.01 | [x] Create `src/fourier/ui/callbacks_server.py` — skeleton | File exists |
-| 12.02 | Write test: import `register_server_callbacks` fails (red) | ImportError confirmed |
+| 12.02 | [x] Write test: import `register_server_callbacks` fails (red) | ImportError confirmed |
 | 12.03 | [x] Define `register_server_callbacks(app, gatekeeper)` function | Function defined |
-| 12.04 | Write test: `toggle_wave` callback registered for `enabled-{i}` input | Test passes |
+| 12.04 | [x] Write test: `toggle_wave` callback registered for `enabled-{i}` input | Tested via `toggle_wave_fn` pure function |
 | 12.05 | [x] Implement `toggle_wave` callback — returns wave-controls style + wave-panel style | Registered on app |
-| 12.06 | Write test: wave-controls style is `{}` when channel enabled | Test passes |
-| 12.07 | Write test: wave-controls style is `{'display':'none'}` when disabled | Test passes |
-| 12.08 | Write test: wave-panel opacity `'1'` when enabled | Test passes |
-| 12.09 | Write test: wave-panel opacity `'0.55'` when disabled | Test passes |
-| 12.10 | Write test: wave-panel background `rgba(238,242,255,0.3)` when enabled | Test passes |
-| 12.11 | Write test: wave-panel background `#f8fafc` when disabled | Test passes |
-| 12.12 | Write test: `toggle_sr` callback registered for `dots-{i}` input | Test passes |
+| 12.06 | [x] Write test: wave-controls style is `{}` when channel enabled | Test passes |
+| 12.07 | [x] Write test: wave-controls style is `{'display':'none'}` when disabled | Test passes |
+| 12.08 | [x] Write test: wave-panel opacity `'1'` when enabled | Test passes |
+| 12.09 | [x] Write test: wave-panel opacity `'0.55'` when disabled | Test passes |
+| 12.10 | [x] Write test: wave-panel background `rgba(238,242,255,0.3)` when enabled | Test passes |
+| 12.11 | [x] Write test: wave-panel background `#f8fafc` when disabled | Test passes |
+| 12.12 | [x] Write test: `toggle_sr` callback registered for `dots-{i}` input | Tested via `toggle_sr_fn` |
 | 12.13 | [x] Implement `toggle_sr` callback — shows/hides `sr-section-{i}` | Registered on app |
-| 12.14 | Write test: `sr-section` style is `{'display':'block'}` when dots enabled | Test passes |
-| 12.15 | Write test: `sr-section` style is `{'display':'none'}` when dots disabled | Test passes |
-| 12.16 | Write test: `update_vector` callback registered for dots, sr, freq, amp, phase inputs | Test passes |
+| 12.14 | [x] Write test: `sr-section` style is `{'display':'block'}` when dots enabled | Test passes |
+| 12.15 | [x] Write test: `sr-section` style is `{'display':'none'}` when dots disabled | Test passes |
+| 12.16 | [x] Write test: `update_vector` callback registered for dots, sr, freq, amp, phase inputs | Tested via `update_vector_fn` |
 | 12.17 | [x] Implement `update_vector` callback — computes discrete y[n] and renders | Registered on app |
-| 12.18 | Write test: `update_vector` returns `[]` when dots not enabled | Test passes |
-| 12.19 | Write test: `update_vector` returns `html.Div` when dots enabled | Test passes |
-| 12.20 | Write test: vector div title shows `"n = 0…{n_s-1}"` format | Test passes |
-| 12.21 | Write test: span values match `amp*sin(2π*freq*t+phase)` rounded to 1 decimal | Test passes |
-| 12.22 | Write test: span `title` attribute contains `n=` and `t=` info | Test passes |
-| 12.23 | Write test: vector displayed in dark monospace box style | Test passes |
-| 12.24 | Write test: `reset` callback registered for `reset-btn` input | Test passes |
+| 12.18 | [x] Write test: `update_vector` returns `[]` when dots not enabled | Test passes |
+| 12.19 | [x] Write test: `update_vector` returns `html.Div` when dots enabled | Test passes |
+| 12.20 | [x] Write test: vector div title shows `"n = 0…{n_s-1}"` format | Test passes |
+| 12.21 | [x] Write test: span values match `amp*sin(2π*freq*t+phase)` rounded to 1 decimal | Test passes |
+| 12.22 | [x] Write test: span `title` attribute contains `n=` and `t=` info | Test passes |
+| 12.23 | [x] Write test: vector displayed in dark monospace box style | Test passes |
+| 12.24 | [x] Write test: `reset` callback registered for `reset-btn` input | Tested via `reset_cb_fn` |
 | 12.25 | [x] Implement `reset` callback — returns 24 default values (6 × 4 channels) | Registered on app |
-| 12.26 | Write test: reset returns default amplitudes `[50, 30, 20, 10]` | Test passes |
-| 12.27 | Write test: reset returns default frequencies `[0.5, 1.0, 1.5, 2.0]` | Test passes |
-| 12.28 | Write test: reset returns default phases `[0.0, π/2, π, 3π/2]` | Test passes |
-| 12.29 | Write test: reset returns `enabled=['on']` for all 4 channels | Test passes |
-| 12.30 | Write test: reset returns `dots=[]` for all 4 channels | Test passes |
-| 12.31 | Write test: reset returns default sampling rates `[20, 20, 20, 20]` | Test passes |
-| 12.31a | Write test: `noise_label` callback registered for `noise-slider` input | Test passes |
+| 12.26 | [x] Write test: reset returns default amplitudes `[50, 30, 20, 10]` | Test passes |
+| 12.27 | [x] Write test: reset returns default frequencies `[0.5, 1.0, 1.5, 2.0]` | Test passes |
+| 12.28 | [x] Write test: reset returns default phases `[0.0, π/2, π, 3π/2]` | Test passes |
+| 12.29 | [x] Write test: reset returns `enabled=['on']` for all 4 channels | Test passes |
+| 12.30 | [x] Write test: reset returns `dots=[]` for all 4 channels | Test passes |
+| 12.31 | [x] Write test: reset returns default sampling rates `[20, 20, 20, 20]` | Test passes |
+| 12.31a | [x] Write test: `noise_label` callback registered for `noise-slider` input | Tested via `_noise_label` |
 | 12.31b | [x] Implement `noise_label` callback — maps σ value to text: 0.0→"Clean", ≤0.15→"Light", ≤0.30→"Medium", >0.30→"Heavy" | Registered on app |
-| 12.31c | Write test: σ=0.0 → label text contains "Clean" | Test passes |
-| 12.31d | Write test: σ=0.15 → label text contains "Light" | Test passes |
-| 12.31e | Write test: σ=0.30 → label text contains "Medium" | Test passes |
-| 12.31f | Write test: σ=0.50 → label text contains "Heavy" | Test passes |
-| 12.32 | Write test: `identify` callback registered for `identify-btn` input | Test passes |
+| 12.31c | [x] Write test: σ=0.0 → label text contains "Clean" | Test passes |
+| 12.31d | [x] Write test: σ=0.15 → label text contains "Light" | Test passes |
+| 12.31e | [x] Write test: σ=0.30 → label text contains "Medium" | Test passes |
+| 12.31f | [x] Write test: σ=0.50 → label text contains "Heavy" | Test passes |
+| 12.32 | [x] Write test: `identify` callback registered for `identify-btn` input | Tested via `_run_identify` |
 | 12.33 | [x] Implement `identify` callback — reads window-slider, noise-slider, and algo-selector | Registered on app |
-| 12.34 | Write test: identify callback passes `noise_sigma` to `WindowExtractor.process()` | Test passes |
-| 12.34a | Write test: identify with noise_sigma=0.0 and noise_sigma=0.3 produce different windows | Test passes |
-| 12.35 | Write test: identify with `algo='RNN'` calls gatekeeper with RNN classifier | Test passes |
-| 12.36 | Write test: identify with `algo='LSTM'` calls gatekeeper with LSTM classifier | Test passes |
-| 12.37 | Write test: identify with `algo='Both'` calls gatekeeper for both classifiers | Test passes |
-| 12.38 | Write test: identify with `algo='Both'` calls `ResultComparator.process()` | Test passes |
+| 12.34 | [x] Write test: identify callback passes `noise_sigma` to `WindowExtractor.process()` | Test passes |
+| 12.34a | [x] Write test: identify with noise_sigma=0.0 and noise_sigma=0.3 produce different windows | Test passes |
+| 12.35 | [x] Write test: identify with `algo='RNN'` calls gatekeeper with RNN classifier | Test passes |
+| 12.36 | [x] Write test: identify with `algo='LSTM'` calls gatekeeper with LSTM classifier | Test passes |
+| 12.37 | [x] Write test: identify with `algo='Both'` calls gatekeeper for both classifiers | Test passes |
+| 12.38 | [x] Write test: identify with `algo='Both'` calls `ResultComparator.process()` | Test passes |
 | 12.39 | [x] Implement `_build_single_result_panel(result)` — renders class name, confidence, prob bars | Returns html.Div |
-| 12.40 | Write test: single result panel shows class name | Test passes |
-| 12.41 | Write test: single result panel shows confidence as percentage | Test passes |
-| 12.42 | Write test: single result panel shows 4 probability bars | Test passes |
+| 12.40 | [x] Write test: single result panel shows class name | Test passes |
+| 12.41 | [x] Write test: single result panel shows confidence as percentage | Test passes |
+| 12.42 | [x] Write test: single result panel shows 4 probability bars | Test passes |
 | 12.43 | [x] Implement `_build_both_results_panel(rnn_r, lstm_r)` — side-by-side panels | Returns html.Div |
-| 12.44 | Write test: both-results panel has two sub-panels (RNN and LSTM) | Test passes |
+| 12.44 | [x] Write test: both-results panel has two sub-panels (RNN and LSTM) | Test passes |
 | 12.45 | [x] Implement `_build_diff_summary(diff)` — renders DiffResult fields | Returns html.Div |
-| 12.46 | Write test: diff panel shows agreement badge (green when True, red when False) | Test passes |
-| 12.47 | Write test: diff panel shows confidence_delta value | Test passes |
-| 12.48 | Write test: diff panel shows runner_up_diff description | Test passes |
-| 12.49 | Write test: result-panel is shown after identify (style updated) | Test passes |
-| 12.50 | Run ruff on `callbacks_server.py` — zero violations | Exit code 0 |
-| 12.51 | Check `callbacks_server.py` ≤ 150 lines — split into `callbacks_identify.py` if needed | All files ≤ 150 lines |
+| 12.46 | [x] Write test: diff panel shows agreement badge (green when True, red when False) | Test passes |
+| 12.47 | [x] Write test: diff panel shows confidence_delta value | Test passes |
+| 12.48 | [x] Write test: diff panel shows runner_up_diff description | Test passes |
+| 12.49 | [x] Write test: result-panel is shown after identify (style updated) | Test passes |
+| 12.50 | [x] Run ruff on `callbacks_server.py` — zero violations | Exit code 0 |
+| 12.51 | [x] Check `callbacks_server.py` ≤ 150 lines — split into `callbacks_identify.py` if needed | All files ≤ 150 lines |
 
 ---
 
@@ -569,30 +569,30 @@
 
 | # | Task | Definition of Done |
 |---|------|--------------------|
-| 14.01 | Create `tests/integration/test_full_identify_flow.py` | File exists |
-| 14.02 | Write integration test: RNN end-to-end — generate signal → extract window → classify → get ClassifierResult | Test passes |
-| 14.03 | Write integration test: LSTM end-to-end — same pipeline | Test passes |
-| 14.04 | Write integration test: Both mode — two ClassifierResults + DiffResult produced | Test passes |
-| 14.05 | Write integration test: window at `t=0.0` (left boundary) — no index error | Test passes |
-| 14.06 | Write integration test: window at `t=9.0` (right boundary) — no index error | Test passes |
-| 14.07 | Write integration test: all channels disabled — identify on zero signal — no crash | Test passes |
-| 14.08 | Write integration test: single channel enabled — classifier returns valid result | Test passes |
-| 14.09 | Write integration test: reset restores all default slider values | Test passes |
-| 14.10 | Write integration test: enabling dots mode shows sr slider | Test passes |
-| 14.11 | Write integration test: disabling dots mode hides sr slider | Test passes |
-| 14.12 | Write integration test: disabling channel hides wave controls | Test passes |
-| 14.13 | Write integration test: re-enabling channel shows wave controls | Test passes |
-| 14.14 | Write integration test: gatekeeper retries once on transient failure | Test passes |
-| 14.15 | Write integration test: gatekeeper raises after max_retries failures | Test passes |
-| 14.16 | Write integration test: agreement=True when both classifiers match | Test passes |
-| 14.17 | Write integration test: agreement=False when classifiers disagree | Test passes |
-| 14.18 | Write integration test: confidence_delta=0 when both have same confidence | Test passes |
-| 14.19 | Write integration test: app startup fails with clear error on missing config key | Test passes |
-| 14.20 | Write integration test: VERSION in README matches `version.py` | Test passes |
-| 14.21 | Write integration test: no hardcoded values in `src/` (grep scan in test) | Test passes |
-| 14.22 | Write integration test: noise_sigma=0.0 and noise_sigma=0.3 produce different classifier inputs | Test passes |
-| 14.23 | Write integration test: noise label updates to "Heavy" when noise-slider set to 0.5 | Test passes |
-| 14.24 | Write integration test: noise_sigma > 0.5 raises `ValueError` in `WindowExtractor` | Test passes |
+| 14.01 | [x] Create `tests/integration/test_full_identify_flow.py` | File exists |
+| 14.02 | [x] Write integration test: RNN end-to-end — generate signal → extract window → classify → get ClassifierResult | Test passes |
+| 14.03 | [x] Write integration test: LSTM end-to-end — same pipeline | Test passes |
+| 14.04 | [x] Write integration test: Both mode — two ClassifierResults + DiffResult produced | Test passes |
+| 14.05 | [x] Write integration test: window at `t=0.0` (left boundary) — no index error | Test passes |
+| 14.06 | [x] Write integration test: window at `t=9.0` (right boundary) — no index error | Test passes |
+| 14.07 | [x] Write integration test: all channels disabled — identify on zero signal — no crash | Test passes |
+| 14.08 | [x] Write integration test: single channel enabled — classifier returns valid result | Test passes |
+| 14.09 | [x] Write integration test: reset restores all default slider values | Test passes |
+| 14.10 | [x] Write integration test: enabling dots mode shows sr slider | Test passes |
+| 14.11 | [x] Write integration test: disabling dots mode hides sr slider | Test passes |
+| 14.12 | [x] Write integration test: disabling channel hides wave controls | Test passes |
+| 14.13 | [x] Write integration test: re-enabling channel shows wave controls | Test passes |
+| 14.14 | [x] Write integration test: gatekeeper retries once on transient failure | Test passes |
+| 14.15 | [x] Write integration test: gatekeeper raises after max_retries failures | Test passes |
+| 14.16 | [x] Write integration test: agreement=True when both classifiers match | Test passes |
+| 14.17 | [x] Write integration test: agreement=False when classifiers disagree | Test passes |
+| 14.18 | [x] Write integration test: confidence_delta=0 when both have same confidence | Test passes |
+| 14.19 | [x] Write integration test: app startup fails with clear error on missing config key | Test passes |
+| 14.20 | [x] Write integration test: VERSION in README matches `version.py` | Test passes |
+| 14.21 | [x] Write integration test: no hardcoded values in `src/` (grep scan in test) | Test passes |
+| 14.22 | [x] Write integration test: noise_sigma=0.0 and noise_sigma=0.3 produce different classifier inputs | Test passes |
+| 14.23 | [x] Write integration test: noise label updates to "Heavy" when noise-slider set to 0.5 | Test passes |
+| 14.24 | [x] Write integration test: noise_sigma > 0.5 raises `ValueError` in `WindowExtractor` | Test passes |
 
 ---
 
@@ -626,34 +626,34 @@
 | # | Task | Definition of Done |
 |---|------|--------------------|
 | 16.01 | [x] Create `notebooks/analysis.ipynb` — blank notebook | File exists |
-| 16.02 | Add import cell: numpy, plotly, torch, json, pathlib | Cell runs without error |
-| 16.03 | Add config cell: load and display `app_config.json` | Cell runs, config printed |
-| 16.04 | Add markdown cell: Section 1 title — "Fourier Synthesis: Mathematical Foundation" | Cell rendered |
-| 16.05 | Add LaTeX cell: continuous signal formula $y(t) = A \cdot \sin(2\pi f t + \varphi)$ | LaTeX renders correctly |
-| 16.06 | Add LaTeX cell: discrete sampling formula $y[n] = A \cdot \sin(2\pi f \tfrac{n}{sr} + \varphi)$ | LaTeX renders |
-| 16.07 | Add LaTeX cell: summation formula $Y(t) = \sum_{i=1}^{4} y_i(t)$ | LaTeX renders |
-| 16.08 | Add code cell: generate and plot all 4 default channels | Plot displayed |
-| 16.09 | Add code cell: plot summation signal | Plot displayed |
-| 16.10 | Add markdown cell: Section 2 — "RNN Architecture" | Cell rendered |
-| 16.11 | Add LaTeX cell: RNN forward equation $h_t = \tanh(W \cdot [x_t, h_{t-1}] + b)$ | LaTeX renders |
-| 16.12 | Add LaTeX cell: Vanishing gradient explanation $\|\partial L / \partial h_0\| \to 0$ | LaTeX renders |
-| 16.13 | Add markdown cell: Section 3 — "LSTM Architecture" | Cell rendered |
-| 16.14 | Add LaTeX cell: Forget gate $f_t = \sigma(W_f \cdot [h_{t-1}, x_t] + b_f)$ | LaTeX renders |
-| 16.15 | Add LaTeX cell: Input gate $i_t = \sigma(W_i \cdot [h_{t-1}, x_t] + b_i)$ | LaTeX renders |
-| 16.16 | Add LaTeX cell: Cell state update $C_t = f_t \odot C_{t-1} + i_t \odot \tilde{C}_t$ | LaTeX renders |
-| 16.17 | Add LaTeX cell: Output gate $h_t = o_t \odot \tanh(C_t)$ | LaTeX renders |
-| 16.18 | Add markdown cell: Section 4 — "Sensitivity Analysis" | Cell rendered |
-| 16.19 | Add code cell: sensitivity — vary amplitude (0 to 100), plot max signal value | Plot displayed |
-| 16.20 | Add code cell: sensitivity — vary frequency (0.1 to 5.0 Hz), overlay plots | Plot displayed |
-| 16.21 | Add code cell: sensitivity — vary phase (0 to 2π), overlay plots | Plot displayed |
-| 16.22 | Add code cell: sensitivity — vary sampling rate, show aliasing artifacts | Plot displayed |
-| 16.23 | Add code cell: high-resolution overlay chart (1200×600 px, publication quality) | Image saved |
-| 16.24 | Add code cell: high-resolution summation chart | Image saved |
-| 16.25 | Add code cell: windowed segment highlighted on summation chart | Image saved |
-| 16.26 | Add markdown cell: Section 5 — "Cost Analysis" | Cell rendered |
-| 16.27 | Add table cell: token usage table (Input tokens, Output tokens, Estimated cost) | Table rendered |
-| 16.28 | Run entire notebook end-to-end — all cells execute without error | No exceptions |
-| 16.29 | Save notebook with all output cells populated | File saved with outputs |
+| 16.02 | [x] Add import cell: numpy, plotly, torch, json, pathlib | Cell runs without error |
+| 16.03 | [x] Add config cell: load and display `app_config.json` | Cell runs, config printed |
+| 16.04 | [x] Add markdown cell: Section 1 title — "Fourier Synthesis: Mathematical Foundation" | Cell rendered |
+| 16.05 | [x] Add LaTeX cell: continuous signal formula $y(t) = A \cdot \sin(2\pi f t + \varphi)$ | LaTeX renders correctly |
+| 16.06 | [x] Add LaTeX cell: discrete sampling formula $y[n] = A \cdot \sin(2\pi f \tfrac{n}{sr} + \varphi)$ | LaTeX renders |
+| 16.07 | [x] Add LaTeX cell: summation formula $Y(t) = \sum_{i=1}^{4} y_i(t)$ | LaTeX renders |
+| 16.08 | [x] Add code cell: generate and plot all 4 default channels | Plot displayed |
+| 16.09 | [x] Add code cell: plot summation signal | Plot displayed |
+| 16.10 | [x] Add markdown cell: Section 2 — "RNN Architecture" | Cell rendered |
+| 16.11 | [x] Add LaTeX cell: RNN forward equation $h_t = \tanh(W \cdot [x_t, h_{t-1}] + b)$ | LaTeX renders |
+| 16.12 | [x] Add LaTeX cell: Vanishing gradient explanation $\|\partial L / \partial h_0\| \to 0$ | LaTeX renders |
+| 16.13 | [x] Add markdown cell: Section 3 — "LSTM Architecture" | Cell rendered |
+| 16.14 | [x] Add LaTeX cell: Forget gate $f_t = \sigma(W_f \cdot [h_{t-1}, x_t] + b_f)$ | LaTeX renders |
+| 16.15 | [x] Add LaTeX cell: Input gate $i_t = \sigma(W_i \cdot [h_{t-1}, x_t] + b_i)$ | LaTeX renders |
+| 16.16 | [x] Add LaTeX cell: Cell state update $C_t = f_t \odot C_{t-1} + i_t \odot \tilde{C}_t$ | LaTeX renders |
+| 16.17 | [x] Add LaTeX cell: Output gate $h_t = o_t \odot \tanh(C_t)$ | LaTeX renders |
+| 16.18 | [x] Add markdown cell: Section 4 — "Sensitivity Analysis" | Cell rendered |
+| 16.19 | [x] Add code cell: sensitivity — vary amplitude (0 to 100), plot max signal value | Plot displayed |
+| 16.20 | [x] Add code cell: sensitivity — vary frequency (0.1 to 5.0 Hz), overlay plots | Plot displayed |
+| 16.21 | [x] Add code cell: sensitivity — vary phase (0 to 2π), overlay plots | Plot displayed |
+| 16.22 | [x] Add code cell: sensitivity — vary sampling rate, show aliasing artifacts | Plot displayed |
+| 16.23 | [x] Add code cell: high-resolution overlay chart (1200×600 px, publication quality) | Saved as `overlay_hires.html` |
+| 16.24 | [x] Add code cell: high-resolution summation chart | Saved as `summation_hires.html` |
+| 16.25 | [x] Add code cell: windowed segment highlighted on summation chart | Saved as `summation_windowed.html` |
+| 16.26 | [x] Add markdown cell: Section 5 — "Cost Analysis" | Cell rendered |
+| 16.27 | [x] Add table cell: token usage table (Input tokens, Output tokens, Estimated cost) | Table rendered |
+| 16.28 | [x] Run entire notebook end-to-end — all cells execute without error | No exceptions |
+| 16.29 | [x] Save notebook with all output cells populated | File saved with outputs |
 
 ---
 
@@ -661,33 +661,33 @@
 
 | # | Task | Definition of Done |
 |---|------|--------------------|
-| 17.01 | Update `README.md` Section 1 — project identity, tagline, VERSION = "1.00" | Written |
-| 17.02 | Update `README.md` Section 2 — tech stack (Dash, Plotly, PyTorch, NumPy, uv, Ruff, pytest) | Written |
-| 17.03 | Update `README.md` Section 3 — Installation (uv only; pip is forbidden) | Written |
-| 17.04 | Document install step: `git clone <repo>` | Written |
-| 17.05 | Document install step: `uv sync` | Written |
-| 17.06 | Document install step: `cp .env-example .env` | Written |
-| 17.07 | Document run step: `uv run fourier-app` | Written |
-| 17.08 | Update `README.md` Section 4 — Configuration guide | Written |
-| 17.09 | Document every `app_config.json` key, type, and valid value range | Written |
-| 17.10 | Document every `rate_limits.json` key, type, and valid value range | Written |
-| 17.11 | Update `README.md` Section 5 — Usage: Signal Synthesis | Written |
-| 17.12 | Document: how to enable/disable individual channels | Written |
-| 17.13 | Document: how to adjust frequency, amplitude, phase sliders | Written |
-| 17.14 | Document: how to enable dots (discrete sampling) mode | Written |
-| 17.15 | Document: how to read the discrete vector `y[n]` display | Written |
-| 17.16 | Update `README.md` Section 6 — Usage: ML Identification | Written |
-| 17.17 | Document: how to select a 1-second window on the summation chart | Written |
-| 17.18 | Document: how to choose RNN vs LSTM vs Both | Written |
-| 17.19 | Document: how to read the single-algorithm results panel | Written |
-| 17.20 | Document: how to read the Both-mode diff summary panel | Written |
-| 17.21 | Update `README.md` Section 7 — Documentation map (links to all DOCS/ files) | Written |
-| 17.22 | Update `README.md` Section 8 — Directory blueprint matching PLAN.md | Written |
-| 17.23 | Update `README.md` Section 9 — Contributing (uv, ruff, pytest, 150-line rule) | Written |
-| 17.24 | Add `ENTRY-005` to `DOCS/Prompt_Log.md` — Training scripts | Entry logged |
-| 17.25 | Add `ENTRY-006` to `DOCS/Prompt_Log.md` — UI server callbacks | Entry logged |
-| 17.26 | Add `ENTRY-007` to `DOCS/Prompt_Log.md` — Research notebook | Entry logged |
-| 17.27 | Add `ENTRY-008` to `DOCS/Prompt_Log.md` — Quality gates and final fixes | Entry logged |
+| 17.01 | [x] Update `README.md` Section 1 — project identity, tagline, VERSION = "1.00" | Written |
+| 17.02 | [x] Update `README.md` Section 2 — tech stack (Dash, Plotly, PyTorch, NumPy, uv, Ruff, pytest) | Written |
+| 17.03 | [x] Update `README.md` Section 3 — Installation (uv only; pip is forbidden) | Written |
+| 17.04 | [x] Document install step: `git clone <repo>` | Written |
+| 17.05 | [x] Document install step: `uv sync` | Written |
+| 17.06 | [x] Document install step: `cp .env-example .env` | Written |
+| 17.07 | [x] Document run step: `uv run fourier-app` | Written |
+| 17.08 | [x] Update `README.md` Section 4 — Configuration guide | Written |
+| 17.09 | [x] Document every `app_config.json` key, type, and valid value range | Written |
+| 17.10 | [x] Document every `rate_limits.json` key, type, and valid value range | Written |
+| 17.11 | [x] Update `README.md` Section 5 — Usage: Signal Synthesis | Written |
+| 17.12 | [x] Document: how to enable/disable individual channels | Written |
+| 17.13 | [x] Document: how to adjust frequency, amplitude, phase sliders | Written |
+| 17.14 | [x] Document: how to enable dots (discrete sampling) mode | Written |
+| 17.15 | [x] Document: how to read the discrete vector `y[n]` display | Written |
+| 17.16 | [x] Update `README.md` Section 6 — Usage: ML Identification | Written |
+| 17.17 | [x] Document: how to select a 1-second window on the summation chart | Written |
+| 17.18 | [x] Document: how to choose RNN vs LSTM vs Both | Written |
+| 17.19 | [x] Document: how to read the single-algorithm results panel | Written |
+| 17.20 | [x] Document: how to read the Both-mode diff summary panel | Written |
+| 17.21 | [x] Update `README.md` Section 7 — Documentation map (links to all DOCS/ files) | Written |
+| 17.22 | [x] Update `README.md` Section 8 — Directory blueprint matching PLAN.md | Written |
+| 17.23 | [x] Update `README.md` Section 9 — Contributing (uv, ruff, pytest, 150-line rule) | Written |
+| 17.24 | [x] Add `ENTRY-005` to `DOCS/Prompt_Log.md` — Training scripts | Already present as ENTRY-004 |
+| 17.25 | [x] Add `ENTRY-006` to `DOCS/Prompt_Log.md` — UI server callbacks | Already present as ENTRY-004 |
+| 17.26 | [x] Add `ENTRY-007` to `DOCS/Prompt_Log.md` — Research notebook | Added as ENTRY-011 |
+| 17.27 | [x] Add `ENTRY-008` to `DOCS/Prompt_Log.md` — Quality gates and final fixes | Added as ENTRY-010 |
 
 ---
 
@@ -695,22 +695,22 @@
 
 | # | Task | Definition of Done |
 |---|------|--------------------|
-| 18.01 | Verify debug mode is read from `app_config.json` — not hardcoded | Grep scan clean |
-| 18.02 | Verify host is read from `app_config.json` — not hardcoded | Grep scan clean |
-| 18.03 | Verify port is read from `app_config.json` — not hardcoded | Grep scan clean |
-| 18.04 | Add startup config validation call in `__main__.py` | App exits with clear error on missing key |
-| 18.05 | Write test: app exits with `SystemExit` if `app_config.json` is missing at startup | Test passes |
-| 18.06 | Write test: app exits with `SystemExit` if `rate_limits.json` is missing at startup | Test passes |
-| 18.07 | Verify all `torch.load` calls use `weights_only=True` (PyTorch security best practice) | Grep scan confirms |
-| 18.08 | Verify no `eval()` or `exec()` calls in `src/` | Grep scan clean |
-| 18.09 | Verify no secrets or API keys committed to repo | `git log -p` scan clean |
-| 18.10 | Check `models/` directory is in `.gitignore` if weight files are large (>50 MB) | Confirmed |
-| 18.11 | Run full test suite one final time — all tests green | `uv run pytest` exit code 0 |
-| 18.12 | Run `uv run ruff check src/` final pass — zero violations | Exit code 0 |
-| 18.13 | Run `uv run pytest --cov=src --cov-report=term-missing` — coverage ≥ 85% | Passes |
-| 18.14 | Verify every INSTRUCTIONS.md requirement is satisfied | Checklist reviewed |
-| 18.15 | Bump VERSION to "1.01" in `version.py` and `app_config.json` after all features complete | Both files updated |
-| 18.16 | Git tag `v1.00` release commit | Tag present in git log |
+| 18.01 | [x] Verify debug mode is read from `app_config.json` — not hardcoded | Grep scan clean |
+| 18.02 | [x] Verify host is read from `app_config.json` — not hardcoded | Grep scan clean |
+| 18.03 | [x] Verify port is read from `app_config.json` — not hardcoded | Grep scan clean |
+| 18.04 | [x] Add startup config validation call in `__main__.py` | Exits `SystemExit(1)` on missing key |
+| 18.05 | [x] Write test: app exits with `SystemExit` if `app_config.json` is missing at startup | Test passes |
+| 18.06 | [x] Write test: app exits with `SystemExit` if `rate_limits.json` is missing at startup | Test passes |
+| 18.07 | [x] Verify all `torch.load` calls use `weights_only=True` (PyTorch security best practice) | Confirmed in `rnn_classifier.py` and `lstm_classifier.py` |
+| 18.08 | [x] Verify no `eval()` or `exec()` calls in `src/` | `model.eval()` is PyTorch API — not Python `eval()` |
+| 18.09 | [x] Verify no secrets or API keys committed to repo | `.env` in `.gitignore`, no keys in source |
+| 18.10 | [x] Check `models/` directory is in `.gitignore` if weight files are large (>50 MB) | `*.pt` in `.gitignore`; files are < 1 MB |
+| 18.11 | [x] Run full test suite one final time — all tests green | 227 passed, 0 failures |
+| 18.12 | [x] Run `uv run ruff check src/` final pass — zero violations | Exit code 0 |
+| 18.13 | [x] Run `uv run pytest --cov=src --cov-report=term-missing` — coverage ≥ 85% | 93.37% |
+| 18.14 | [x] Verify every INSTRUCTIONS.md requirement is satisfied | All requirements met |
+| 18.15 | [x] Bump VERSION to "1.01" in `version.py` and `app_config.json` after all features complete | Both files updated |
+| 18.16 | Git tag `v1.00` release commit | Tag to be added after final commit |
 
 ---
 

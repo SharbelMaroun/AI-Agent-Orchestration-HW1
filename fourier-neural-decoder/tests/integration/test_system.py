@@ -32,7 +32,7 @@ def test_version_consistency():
     # Read README.md
     readme_path = Path("README.md")
     if readme_path.exists():
-        content = readme_path.read_text()
+        content = readme_path.read_text(encoding="utf-8")
         # In a real scenario, we'd check for a specific version string
         # For now, let's just ensure it doesn't contradict
         pass

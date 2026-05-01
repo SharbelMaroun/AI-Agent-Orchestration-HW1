@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from dash import html
 
 from fourier.ui.layout import (
@@ -177,3 +178,52 @@ def test_four_wave_panels_in_layout():
     for i in range(4):
         ids = _find_ids(layout)
         assert f"wave-panel-{i}" in ids
+
+
+def _find_slider_by_id(comp, sid: str):
+    from dash import dcc
+    if isinstance(comp, dcc.Slider) and getattr(comp, "id", None) == sid:
+        return comp
+    children = getattr(comp, "children", None)
+    if children is None:
+        return None
+    if not isinstance(children, list):
+        children = [children]
+    for k in children:
+        result = _find_slider_by_id(k, sid)
+        if result is not None:
+            return result
+    return None
+
+
+def test_freq_slider_range():
+    panel = _build_wave_panel(0)
+    slider = _find_slider_by_id(panel, "freq-0")
+    assert slider is not None
+    assert slider.min == 0.1
+    assert slider.max == 5.0
+
+
+def test_amp_slider_range():
+    panel = _build_wave_panel(0)
+    slider = _find_slider_by_id(panel, "amp-0")
+    assert slider is not None
+    assert slider.min == 0
+    assert slider.max == 100
+
+
+def test_phase_slider_range():
+    import math
+    panel = _build_wave_panel(0)
+    slider = _find_slider_by_id(panel, "phase-0")
+    assert slider is not None
+    assert slider.min == 0.0
+    assert slider.max == pytest.approx(round(2 * math.pi, 2), abs=0.01)
+
+
+def test_sr_slider_range():
+    panel = _build_wave_panel(0)
+    slider = _find_slider_by_id(panel, "sr-0")
+    assert slider is not None
+    assert slider.min == 1
+    assert slider.max == 50

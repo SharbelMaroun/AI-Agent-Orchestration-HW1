@@ -416,7 +416,7 @@ fourier-freq-app/
 │   │   ├── callbacks_identify.py    (≤ 150 lines)
 │   │   └── callbacks_result.py      (≤ 150 lines)
 │   ├── shared/
-│   │   ├── version.py               — VERSION = "1.00"
+│   │   ├── version.py               — VERSION = "1.01"
 │   │   └── constants.py             — WAVE_NAMES, COLORS (loaded from config)
 │   └── gatekeeper.py                (≤ 150 lines)
 ├── tests/

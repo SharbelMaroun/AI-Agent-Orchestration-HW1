@@ -4,7 +4,7 @@
   "debug": false,
   "host": "127.0.0.1",
   "port": 8050,
-  "version": "1.00",
+  "version": "1.01",
   "window_duration": 1.0,
   "window_points": 50,
   "noise_default": 0.0,

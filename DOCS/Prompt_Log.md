@@ -391,4 +391,85 @@ Phase 15 required passing all quality gates: zero Ruff violations, ≥85% test c
 
 ---
 
+### [ENTRY-011] — Phase 16: Research Notebook completion & Phase 17: README
+**Date:** 2026-05-02
+**Model:** claude-sonnet-4-6
+**File(s) affected:**
+- `fourier-neural-decoder/notebooks/analysis.ipynb` (3 cells added)
+- `fourier-neural-decoder/README.md` (written from scratch)
+
+#### Context
+Phase 16 required a complete Jupyter research notebook covering mathematical foundations (LaTeX), RNN/LSTM architecture, sensitivity analysis, and cost analysis. The notebook already contained cells 0–19 covering all content except the three high-resolution chart cells (16.23–16.25). Phase 17 required writing the full README from scratch — it was 0 bytes.
+
+#### Prompt (final version used)
+> "please continue to implement the next phases"
+
+#### Refinements
+1. `kaleido` is not in `pyproject.toml` dependencies, so `fig.write_image()` (PNG/SVG) is unavailable. High-res charts saved as `write_html()` instead — same publication-quality layout at 1200×600 px.
+2. README Section 7 (Documentation Map) links to `DOCS/` files in the repo root, not `fourier-neural-decoder/docs/`, matching the actual project structure.
+
+#### Accepted Output Summary
+- **Notebook cells added:** `overlay_hires.html` (1200×600, white bg, legend), `summation_hires.html` (1200×600, dark bg), `summation_windowed.html` (amber vrect annotation at t=3–4s). All use `fig.write_html()` and `fig.show()`.
+- **README.md:** 9 sections — Project Identity, Tech Stack, Installation (uv-only, train weights, launch), Configuration (all `app_config.json` + `rate_limits.json` keys documented), Usage: Signal Synthesis (enable/disable, sliders, dots mode, y[n] vector), Usage: ML Identification (window selection, algo choice, noise slider, result panels, diff summary), Documentation Map, Directory Blueprint (matches PLAN.md), Contributing (uv, ruff, pytest, 150-line rule, no hardcoding, Building Block Pattern).
+
+---
+
+### [ENTRY-012] — Phase 18: Deployment Hardening & Final Checks
+**Date:** 2026-05-02
+**Model:** claude-sonnet-4-6
+**File(s) affected:**
+- `fourier-neural-decoder/tests/unit/test_main.py` (1 test added)
+- `fourier-neural-decoder/tests/integration/test_system.py` (encoding fix)
+- `fourier-neural-decoder/src/fourier/shared/version.py` (bumped to 1.01)
+- `fourier-neural-decoder/config/app_config.json` (bumped to 1.01)
+- `fourier-neural-decoder/tests/unit/test_shared_version.py` (updated assertion)
+
+#### Context
+Phase 18 required verifying all hardening gates, adding missing startup tests, confirming PyTorch security practices, and bumping the version. All security scans passed immediately. Two test fixes were needed.
+
+#### Prompt (final version used)
+> "continue to the next"
+
+#### Refinements
+1. `test_version_consistency` failed with `UnicodeDecodeError` on Windows (cp1255 codec) because README.md contains UTF-8 characters (em-dash). Fixed by adding `encoding="utf-8"` to `read_text()`.
+2. `test_version_value` asserted `"1.00"` — updated to `"1.01"` after version bump.
+3. Added `test_main_exits_with_1_on_missing_rate_limits` to explicitly cover 18.06.
+
+#### Accepted Output Summary
+- All security scans clean: `torch.load` uses `weights_only=True`, no Python `eval()`/`exec()`, no secrets, `.env` and `*.pt` in `.gitignore`.
+- `__main__.py` already had startup validation (`SystemExit(1)` on `FileNotFoundError`/`KeyError`/`ValueError`).
+- VERSION bumped to `"1.01"` in both `version.py` and `app_config.json`.
+- Final state: **227 tests passing · 93.37% coverage · Ruff clean · All files ≤150 lines**.
+
+---
+
+### [ENTRY-013] — TODO audit: missing tests for Phases 10, 11, 12, 14
+**Date:** 2026-05-02
+**Model:** claude-sonnet-4-6
+**File(s) affected:**
+- `fourier-neural-decoder/tests/unit/test_layout.py` (4 slider range tests added)
+- `fourier-neural-decoder/tests/unit/test_callbacks_identify.py` (new — 7 tests)
+- `fourier-neural-decoder/tests/integration/test_full_identify_flow.py` (3 tests added)
+- `fourier-neural-decoder/tests/integration/test_system.py` (encoding fix)
+- `DOCS/TODO.md` (Phases 10, 11, 12, 14 fully checked off)
+
+#### Context
+A review of the TODO found ~60 unchecked items across Phases 10–14. Most were already implemented and passing — they were simply never marked. A subset were genuinely missing tests that needed to be written.
+
+#### Prompt (final version used)
+> "check the todo file, i see some old phases that hasn't completed yet"
+
+#### Refinements
+1. Audited every unchecked item against the actual test files.
+2. Genuinely missing tests identified: slider ranges (10.21–10.24), identify routing (12.32–12.38), both-results panel (12.44), agreement/delta integration tests (14.16–14.18).
+3. Added `_find_slider_by_id` helper to `test_layout.py` to access specific sliders by ID and assert their `min`/`max`.
+4. Created `test_callbacks_identify.py` to test `_run_identify` pure function directly with mocks — covering RNN/LSTM/Both routing, gatekeeper call count, comparator invocation, noise sigma forwarding, result panel style.
+5. `test_version_consistency` was failing with `UnicodeDecodeError` (Windows cp1255 codec) — fixed with `encoding="utf-8"`.
+
+#### Accepted Output Summary
+- **242 tests passing · 96.43% coverage · Ruff clean**.
+- All items in Phases 10, 11, 12, 14 marked `[x]` in TODO.md.
+
+---
+
 *Add new entries below as development progresses.*
