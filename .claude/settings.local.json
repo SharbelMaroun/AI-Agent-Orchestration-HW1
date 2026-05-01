@@ -6,7 +6,14 @@
       "Bash(ConvertTo-Json)",
       "Bash(uv --version)",
       "Bash(uv init *)",
-      "Bash(uv sync *)"
+      "Bash(uv sync *)",
+      "Bash(uv run *)",
+      "Bash(ruff check *)",
+      "Bash(python -m ruff check src/)",
+      "Bash(grep -E \"Miss|src\\\\\\\\\")",
+      "Bash(grep -v \"^$\")",
+      "Bash(wc -l *.py)",
+      "Bash(python -c 'print\\(sum\\(1 for _ in open\\('\\\\''__TRACKED_VAR__'\\\\''\\)\\)\\)')"
     ]
   }
 }

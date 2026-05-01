@@ -316,7 +316,7 @@ wheels = [
 [[package]]
 name = "fourier-neural-decoder"
 version = "1.0.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "dash" },
     { name = "numpy" },

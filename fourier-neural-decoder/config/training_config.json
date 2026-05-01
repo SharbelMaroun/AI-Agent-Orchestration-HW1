@@ -1,0 +1,27 @@
+{
+  "rnn": {
+    "hidden_size": 64,
+    "num_layers": 1,
+    "learning_rate": 0.001,
+    "batch_size": 32,
+    "epochs": 50,
+    "log_every_n_epochs": 10
+  },
+  "lstm": {
+    "hidden_size": 128,
+    "num_layers": 2,
+    "dropout": 0.3,
+    "learning_rate": 0.001,
+    "batch_size": 32,
+    "epochs": 50,
+    "log_every_n_epochs": 10
+  },
+  "data": {
+    "n_samples": 1000,
+    "test_ratio": 0.2,
+    "noise_std": 0.1,
+    "class_frequencies_hz": [0.5, 1.0, 1.5, 2.0],
+    "window_seconds": 1.0,
+    "window_points": 50
+  }
+}
