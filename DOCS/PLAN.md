@@ -1,4 +1,4 @@
-# PLAN — Fourier Frequency App
+﻿# PLAN — Fourier Frequency App
 **Version:** 1.00 | **Status:** Approved | **Owner:** sharbelm
 
 ---
@@ -40,7 +40,7 @@ External Systems: None (fully self-contained; no external APIs in v1.00)
 │  │                     │ HTTP │  [Python process]           │    │
 │  │  Plotly charts      │      │  src/fourier/ui/           │    │
 │  │  Clientside JS      │      │  layout.py                 │    │
-│  │  callbacks          │      │  callbacks_client.py       │    │
+│  │  C = channel vector │      │  callbacks_client.py       │    │
 │  │                     │      │  callbacks_server.py       │    │
 │  │                     │      │  callbacks_identify.py     │    │
 │  └─────────────────────┘      │  callbacks_result.py       │    │

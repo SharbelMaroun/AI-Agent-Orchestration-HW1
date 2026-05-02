@@ -501,4 +501,80 @@ A full code review identified 13 issues. The 5 highest-priority were implemented
 
 ---
 
+### [ENTRY-015] — RNN/LSTM Training Accuracy Problem & Fix
+**Date:** 2026-05-02
+**Model:** claude-sonnet-4-6
+**File(s) affected:**
+- `fourier-neural-decoder/src/fourier/services/train_models.py` (gradient clipping added)
+- `fourier-neural-decoder/config/training_config.json` (hyperparameters tuned)
+- `fourier-neural-decoder/config/app_config.json` (rnn_config updated)
+
+#### Context
+After requesting better model performance ("I don't care if the training will take too much time, put parameters that give me the best performance"), training was run and accuracy was reported as 68% for RNN — below the 80% target. A second training attempt was made with larger parameters (hidden_size=128, num_layers=2, lr=0.001, noise_std=0.15) which produced the following outputs:
+
+```
+Training RNN...
+RNN epoch 10/150 loss=1.3505 acc=28.38%
+RNN epoch 20/150 loss=1.3295 acc=45.38%
+RNN epoch 30/150 loss=1.3891 acc=25.00%
+RNN epoch 40/150 loss=1.3891 acc=24.50%
+RNN epoch 50/150 loss=1.3885 acc=25.00%
+RNN epoch 60/150 loss=1.3868 acc=25.12%
+RNN epoch 70/150 loss=1.3885 acc=26.50%
+RNN epoch 80/150 loss=1.3874 acc=26.62%
+RNN epoch 90/150 loss=1.3872 acc=26.00%
+RNN epoch 100/150 loss=1.3873 acc=23.00%
+RNN epoch 110/150 loss=1.3876 acc=25.25%
+RNN epoch 120/150 loss=1.3875 acc=23.00%
+RNN epoch 130/150 loss=1.3870 acc=23.00%
+RNN epoch 140/150 loss=1.3871 acc=23.00%
+RNN epoch 150/150 loss=1.3870 acc=23.62%
+Training LSTM...
+LSTM epoch 10/100 loss=1.3851 acc=27.38%
+LSTM epoch 20/100 loss=1.3848 acc=23.00%
+LSTM epoch 30/100 loss=1.3846 acc=23.00%
+LSTM epoch 40/100 loss=1.4027 acc=23.00%
+LSTM epoch 50/100 loss=0.7442 acc=100.00%
+LSTM epoch 60/100 loss=0.7438 acc=100.00%
+LSTM epoch 70/100 loss=0.7438 acc=100.00%
+LSTM epoch 80/100 loss=0.7437 acc=100.00%
+LSTM epoch 90/100 loss=1.2409 acc=50.88%
+LSTM epoch 100/100 loss=0.7598 acc=97.12%
+```
+
+#### Root Cause Analysis
+Two distinct problems were identified:
+
+**RNN — stuck at 25% (random chance):**
+- Loss pinned at 1.386 = `ln(4)`, which is the theoretical loss of a model that predicts all 4 classes equally — the model is not learning at all
+- Root cause: **exploding/vanishing gradients** in vanilla RNN over 50 time steps with no gradient clipping
+- Secondary cause: `noise_std=0.15` adds too much noise to the 1-second frequency windows, corrupting the frequency signal
+
+**LSTM — wildly unstable:**
+- Jumps from 23% → 100% → 50% → 97% within the same run
+- Root cause: **learning rate 0.001 too high** for this architecture — causes the optimizer to overshoot, leading to periodic collapse and recovery
+
+#### Prompt (final version used)
+> "in prompt log, write that we are facing this problem and write there the outputs that we had and how we changed"
+
+#### Refinements & Fix Applied
+1. Added `nn.utils.clip_grad_norm_(model.parameters(), max_norm=grad_clip)` to `_train_epoch()` in `train_models.py` — clips exploding gradients before each optimizer step. `grad_clip` is now a configurable parameter read from `training_config.json`.
+2. LSTM learning rate reduced: `0.001` → `0.0003` — eliminates the oscillation.
+3. `noise_std` reduced: `0.15` → `0.05` — cleaner frequency signal makes the task learnable.
+4. RNN kept at `num_layers=1` — multi-layer vanilla RNN compounds the vanishing gradient problem.
+
+#### Updated `training_config.json`
+```json
+"rnn":  { "hidden_size": 128, "num_layers": 1, "learning_rate": 0.001,  "grad_clip": 1.0, "epochs": 150 }
+"lstm": { "hidden_size": 128, "num_layers": 2, "learning_rate": 0.0003, "grad_clip": 1.0, "epochs": 100 }
+"data": { "n_samples": 4000, "noise_std": 0.05, "seed": 42 }
+```
+
+#### Expected outcome
+- RNN loss should decrease steadily from epoch 1 (gradient clipping prevents the stuck-at-1.386 behaviour)
+- LSTM should converge smoothly without oscillation
+- Target: RNN ≥ 80%, LSTM ≥ 95%
+
+---
+
 *Add new entries below as development progresses.*

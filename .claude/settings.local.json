@@ -14,7 +14,8 @@
       "Bash(grep -v \"^$\")",
       "Bash(wc -l *.py)",
       "Bash(python -c 'print\\(sum\\(1 for _ in open\\('\\\\''__TRACKED_VAR__'\\\\''\\)\\)\\)')",
-      "Bash(gh pr *)"
+      "Bash(gh pr *)",
+      "Bash(python -c ' *)"
     ]
   }
 }

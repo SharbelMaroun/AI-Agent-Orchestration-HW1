@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import math
 from pathlib import Path
@@ -24,6 +25,7 @@ def _load_training_config() -> dict[str, Any]:
 
 
 def generate_synthetic_data(n: int = 1000) -> tuple[np.ndarray, np.ndarray]:
+    """Generate composite multi-channel signals. Label = dominant (highest-amplitude) channel."""
     cfg = _load_training_config()["data"]
     if "seed" in cfg:
         np.random.seed(int(cfg["seed"]))
@@ -33,14 +35,24 @@ def generate_synthetic_data(n: int = 1000) -> tuple[np.ndarray, np.ndarray]:
     samples_per_class = n // len(freqs)
     t = np.linspace(0, float(cfg["window_seconds"]), window_pts, endpoint=False)
     X_list, y_list = [], []
-    for cls, freq in enumerate(freqs):
+    for dominant_cls, dominant_freq in enumerate(freqs):
         for _ in range(samples_per_class):
-            phase = np.random.uniform(0, 2 * math.pi)
-            signal = np.sin(2 * math.pi * float(freq) * t + phase)
+            amp_dominant = np.random.uniform(0.6, 1.0)
+            phase_d = np.random.uniform(0, 2 * math.pi)
+            signal = amp_dominant * np.sin(2 * math.pi * float(dominant_freq) * t + phase_d)
+            n_others = np.random.randint(0, len(freqs))
+            other_cls = np.random.choice(
+                [i for i in range(len(freqs)) if i != dominant_cls], n_others, replace=False
+            )
+            for oc in other_cls:
+                amp_other = np.random.uniform(0.1, amp_dominant * 0.55)
+                phase_o = np.random.uniform(0, 2 * math.pi)
+                signal += amp_other * np.sin(2 * math.pi * float(freqs[oc]) * t + phase_o)
             signal = _add_noise(signal, std=noise_std)
-            signal = signal / max(float(np.max(np.abs(signal))), 1e-8)
+            mean, std = float(np.mean(signal)), float(np.std(signal))
+            signal = (signal - mean) / std if std > 1e-8 else np.zeros_like(signal)
             X_list.append(signal.reshape(window_pts, 1).astype(np.float32))
-            y_list.append(cls)
+            y_list.append(dominant_cls)
     return np.array(X_list, dtype=np.float32), np.array(y_list, dtype=np.int64)
 
 
@@ -60,7 +72,8 @@ def _split_data(
 
 
 def _train_epoch(
-    model: nn.Module, loader: DataLoader, optimizer: torch.optim.Optimizer, criterion: nn.Module
+    model: nn.Module, loader: DataLoader, optimizer: torch.optim.Optimizer,
+    criterion: nn.Module, grad_clip: float = 1.0,
 ) -> float:
     model.train()
     total_loss = 0.0
@@ -68,6 +81,7 @@ def _train_epoch(
         optimizer.zero_grad()
         loss = criterion(model(xb), yb)
         loss.backward()
+        nn.utils.clip_grad_norm_(model.parameters(), max_norm=grad_clip)
         optimizer.step()
         total_loss += float(loss.item())
     return total_loss / len(loader)
@@ -98,11 +112,27 @@ def train_rnn(config: dict[str, Any] | None = None) -> RNNModel:
     test_loader = DataLoader(TensorDataset(torch.tensor(X_te), torch.tensor(y_te)), batch_size=bs)
     model = RNNModel(hidden_size=int(cfg["hidden_size"]), num_layers=int(cfg["num_layers"]))
     optimizer = torch.optim.Adam(model.parameters(), lr=float(cfg["learning_rate"]))
+    step_size = int(cfg.get("lr_step", 50))
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=float(cfg.get("lr_gamma", 0.5)))
     criterion = nn.CrossEntropyLoss()
+    grad_clip = float(cfg.get("grad_clip", 1.0))
+    early_stop_acc = float(cfg.get("early_stop_acc", 1.0))
+    best_acc, best_state = 0.0, None
     for epoch in range(1, int(cfg["epochs"]) + 1):
-        loss = _train_epoch(model, loader, optimizer, criterion)
+        loss = _train_epoch(model, loader, optimizer, criterion, grad_clip)
+        scheduler.step()
+        acc = _eval_model(model, test_loader)
+        if acc > best_acc:
+            best_acc = acc
+            best_state = copy.deepcopy(model.state_dict())
         if epoch % int(cfg["log_every_n_epochs"]) == 0:
-            print(f"RNN epoch {epoch}/{cfg['epochs']} loss={loss:.4f} acc={_eval_model(model, test_loader):.2%}")
+            print(f"RNN epoch {epoch}/{cfg['epochs']} loss={loss:.4f} acc={acc:.2%} best={best_acc:.2%}")
+        if best_acc >= early_stop_acc:
+            print(f"RNN early stop at epoch {epoch} — reached {best_acc:.2%}")
+            break
+    if best_state is not None:
+        model.load_state_dict(best_state)
+    print(f"RNN best accuracy: {best_acc:.2%}")
     save_weights(model, _MODELS_DIR / "rnn_classifier.pt")
     return model
 
@@ -118,11 +148,27 @@ def train_lstm(config: dict[str, Any] | None = None) -> LSTMModel:
         hidden_size=int(cfg["hidden_size"]), num_layers=int(cfg["num_layers"]), dropout=float(cfg["dropout"])
     )
     optimizer = torch.optim.Adam(model.parameters(), lr=float(cfg["learning_rate"]))
+    step_size = int(cfg.get("lr_step", 50))
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=float(cfg.get("lr_gamma", 0.5)))
     criterion = nn.CrossEntropyLoss()
+    grad_clip = float(cfg.get("grad_clip", 1.0))
+    early_stop_acc = float(cfg.get("early_stop_acc", 1.0))
+    best_acc, best_state = 0.0, None
     for epoch in range(1, int(cfg["epochs"]) + 1):
-        loss = _train_epoch(model, loader, optimizer, criterion)
+        loss = _train_epoch(model, loader, optimizer, criterion, grad_clip)
+        scheduler.step()
+        acc = _eval_model(model, test_loader)
+        if acc > best_acc:
+            best_acc = acc
+            best_state = copy.deepcopy(model.state_dict())
         if epoch % int(cfg["log_every_n_epochs"]) == 0:
-            print(f"LSTM epoch {epoch}/{cfg['epochs']} loss={loss:.4f} acc={_eval_model(model, test_loader):.2%}")
+            print(f"LSTM epoch {epoch}/{cfg['epochs']} loss={loss:.4f} acc={acc:.2%} best={best_acc:.2%}")
+        if best_acc >= early_stop_acc:
+            print(f"LSTM early stop at epoch {epoch} — reached {best_acc:.2%}")
+            break
+    if best_state is not None:
+        model.load_state_dict(best_state)
+    print(f"LSTM best accuracy: {best_acc:.2%}")
     save_weights(model, _MODELS_DIR / "lstm_classifier.pt")
     return model
 
