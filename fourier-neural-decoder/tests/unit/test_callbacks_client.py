@@ -23,12 +23,28 @@ def test_js_string_contains_t_cont():
     assert "tCont" in CLIENTSIDE_CHART_JS
 
 
-def test_js_function_has_25_parameters():
+def test_js_function_has_23_parameters():
     first_brace = CLIENTSIDE_CHART_JS.index("{")
     sig = CLIENTSIDE_CHART_JS[:first_brace]
     params_str = sig.split("(")[1].rsplit(")", 1)[0]
     params = [p.strip() for p in params_str.split(",") if p.strip()]
-    assert len(params) == 25
+    assert len(params) == 23
+
+
+def test_js_uses_noise_sigma():
+    assert "noiseSigma" in CLIENTSIDE_CHART_JS
+
+
+def test_js_shows_noisy_dots_when_sigma_positive():
+    assert "sigma > 0" in CLIENTSIDE_CHART_JS
+
+
+def test_js_uses_channel_vector_C():
+    assert "C[i]" in CLIENTSIDE_CHART_JS
+
+
+def test_js_channel_vector_checks_one():
+    assert "C[i] !== 1" in CLIENTSIDE_CHART_JS
 
 
 def test_js_contains_vrect_shape():

@@ -93,6 +93,7 @@ def _build_footer() -> html.Footer:
 
 def build_layout() -> html.Div:
     return html.Div([
+        dcc.Store(id="channel-vector", data=[1, 1, 1, 1]),
         _build_header(),
         html.Div([_build_sidebar(), _build_main_area()],
                  style={"display": "flex", "flex": "1", "overflow": "hidden"}),

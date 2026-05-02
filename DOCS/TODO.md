@@ -442,6 +442,8 @@
 | 10.38 | [x] Write test: footer displays VERSION string | Test passes |
 | 10.39 | [x] Run ruff on `layout.py` — zero violations | Exit code 0 |
 | 10.40 | [x] Check `layout.py` ≤ 150 lines — split into `layout_sidebar.py`, `layout_main.py` if needed | All files ≤ 150 lines |
+| 10.41 | [x] Add `dcc.Store(id="channel-vector", data=[1,1,1,1])` to `build_layout()` | Store present in layout |
+| 10.42 | [x] Write test: layout contains `channel-vector` Store id | Test passes |
 
 ---
 
@@ -456,11 +458,14 @@
 | 11.05 | [x] Write test: JS string contains `overlayTraces` variable | Test passes |
 | 11.06 | [x] Write test: JS string contains `sumY` variable | Test passes |
 | 11.07 | [x] Write test: JS string contains `tCont` variable | Test passes |
-| 11.08 | [x] Write test: JS function accepts 24 parameters (6 per channel × 4) | Test passes (count function params) |
+| 11.08 | [x] Write test: JS function accepts 22 parameters (C + 5 per channel × 4 + window-slider) | Test passes (count function params) |
+| 11.08a | [x] Implement JS: accept `C` binary vector as first parameter (replaces 4 separate enabled inputs) | JS param `C` present |
+| 11.08b | [x] Write test: JS uses `C[i] !== 1` to skip disabled channels | Test passes |
+| 11.08c | [x] Write test: JS uses `C[i]` variable | Test passes |
 | 11.09 | [x] Implement JS: continuous time axis `tCont` (0 to 10s, 501 points) | JS block present |
 | 11.10 | [x] Implement JS: `sumY` array initialized to zeros (length 501) | JS block present |
 | 11.11 | [x] Implement JS: loop over 4 channels (i=0 to 3) | JS block present |
-| 11.12 | [x] Implement JS: `isEnabled` check — skip disabled channels | JS block present |
+| 11.12 | [x] Implement JS: channel enabled check via `C[i] !== 1` — skip disabled channels | JS block present |
 | 11.13 | [x] Implement JS: accumulate `sumY` for enabled channels (continuous) | JS block present |
 | 11.14 | [x] Implement JS: dots mode — scatter markers at `n/sr` sample points | JS block present |
 | 11.15 | [x] Implement JS: line mode — continuous trace with `mode: 'lines'` | JS block present |
@@ -474,7 +479,7 @@
 | 11.23 | [x] Implement `register_clientside_callback(app)` function | Registers callback on app |
 | 11.24 | [x] Write test: callback outputs `overlay-chart.figure` | Test passes |
 | 11.25 | [x] Write test: callback outputs `sum-chart.figure` | Test passes |
-| 11.26 | [x] Write test: callback has 25 inputs (24 channel controls + 1 window-slider) | Test passes |
+| 11.26 | [x] Write test: callback has 23 inputs (C store + 20 channel controls + window-slider + noise-slider) | Test passes |
 | 11.27 | [x] Run ruff on `callbacks_client.py` — zero violations | Exit code 0 |
 | 11.28 | [x] Check `callbacks_client.py` ≤ 150 lines | Passes |
 
@@ -542,6 +547,11 @@
 | 12.49 | [x] Write test: result-panel is shown after identify (style updated) | Test passes |
 | 12.50 | [x] Run ruff on `callbacks_server.py` — zero violations | Exit code 0 |
 | 12.51 | [x] Check `callbacks_server.py` ≤ 150 lines — split into `callbacks_identify.py` if needed | All files ≤ 150 lines |
+| 12.52 | [x] Implement `compute_channel_vector(*enabled)` — converts 4 checklists to C = [0/1, …] | Returns `list[int]` of length 4 |
+| 12.53 | [x] Register `channel_vector_cb` callback — writes C to `channel-vector` Store on any enabled change | Registered on app |
+| 12.54 | [x] Write test: `compute_channel_vector(["on"],["on"],["on"],["on"])` returns `[1,1,1,1]` | Test passes |
+| 12.55 | [x] Write test: `compute_channel_vector([],[],[],[])` returns `[0,0,0,0]` | Test passes |
+| 12.56 | [x] Write test: `compute_channel_vector(["on"],[],["on"],[])` returns `[1,0,1,0]` | Test passes |
 
 ---
 
@@ -710,7 +720,7 @@
 | 18.13 | [x] Run `uv run pytest --cov=src --cov-report=term-missing` — coverage ≥ 85% | 93.37% |
 | 18.14 | [x] Verify every INSTRUCTIONS.md requirement is satisfied | All requirements met |
 | 18.15 | [x] Bump VERSION to "1.01" in `version.py` and `app_config.json` after all features complete | Both files updated |
-| 18.16 | Git tag `v1.00` release commit | Tag to be added after final commit |
+| 18.16 | [x] Git tag `v1.00` release commit | Tag present in git log |
 
 ---
 

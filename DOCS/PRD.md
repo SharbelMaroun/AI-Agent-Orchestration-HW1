@@ -58,7 +58,13 @@ Existing tools are either static (textbook diagrams) or require coding expertise
 - When Both is selected, results from RNN and LSTM shall be displayed side by side.
 - A Diff Summary panel shall show: agreement flag, confidence delta (LSTM − RNN), top-class and runner-up probabilities from each model.
 
-### FR-09 · Noise Injection Slider
+### FR-09 · Channel Selection Vector C
+- The enabled state of all 4 channels shall be represented as a binary vector **C = [c₀, c₁, c₂, c₃]** where cᵢ ∈ {0, 1}.
+- C shall be computed server-side from the 4 `enabled-{i}` checklists and stored in a `dcc.Store(id="channel-vector")` component.
+- The clientside chart callback shall consume C as a single input (instead of 4 separate checklist values), iterating `C[i] === 1` to determine which channels to render.
+- C shall default to `[1, 1, 1, 1]` on app load (all channels enabled).
+
+### FR-10 · Noise Injection Slider
 - A **Noise Intensity** slider (id: `noise-slider`, range 0.0–0.5, step 0.01, default 0.0) shall be displayed in the ML identification panel.
 - When σ > 0.0, Gaussian noise `N(0, σ²)` shall be added to the normalized 50-point window **after** normalization and **before** model inference.
 - At σ = 0.0 the behavior shall be identical to the no-noise baseline.

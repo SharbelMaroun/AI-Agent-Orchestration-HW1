@@ -173,6 +173,29 @@ def test_footer_displays_version():
     assert _contains_text(footer, VERSION)
 
 
+def test_layout_contains_channel_vector_store():
+    from dash import dcc
+    layout = build_layout()
+
+    def find_store(comp):
+        if isinstance(comp, dcc.Store) and getattr(comp, "id", None) == "channel-vector":
+            return comp
+        children = getattr(comp, "children", None)
+        if children is None:
+            return None
+        if not isinstance(children, list):
+            children = [children]
+        for k in children:
+            result = find_store(k)
+            if result is not None:
+                return result
+        return None
+
+    store = find_store(layout)
+    assert store is not None
+    assert store.data == [1, 1, 1, 1]
+
+
 def test_four_wave_panels_in_layout():
     layout = build_layout()
     for i in range(4):

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import time
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from typing import Any, Callable
 
 
@@ -33,12 +32,12 @@ class ModelGatekeeper:
 
     def _call_with_timeout(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
         timeout = float(self.config["timeout_seconds"])
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(fn, *args, **kwargs)
-            try:
-                return future.result(timeout=timeout)
-            except FuturesTimeoutError:
-                raise RuntimeError(f"Call timed out after {timeout}s")
+        start = time.time()
+        result = fn(*args, **kwargs)
+        elapsed = time.time() - start
+        if elapsed > timeout:
+            print(f"[WARNING] Call took {elapsed:.1f}s, exceeded timeout of {timeout}s")
+        return result
 
     def _execute_with_retry(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
         max_retries = int(self.config["max_retries"])

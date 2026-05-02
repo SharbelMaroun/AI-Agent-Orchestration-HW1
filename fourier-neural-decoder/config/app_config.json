@@ -11,6 +11,6 @@
   "noise_max": 0.5,
   "rnn_model_path": "models/rnn_classifier.pt",
   "lstm_model_path": "models/lstm_classifier.pt",
-  "rnn_config": {"hidden_size": 64, "num_layers": 1},
+  "rnn_config": {"hidden_size": 128, "num_layers": 1},
   "lstm_config": {"hidden_size": 128, "num_layers": 2, "dropout": 0.3}
 }

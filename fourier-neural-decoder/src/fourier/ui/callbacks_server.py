@@ -48,6 +48,11 @@ def update_vector_fn(i: int, dots: list[str], sr: float, freq: float, amp: float
                     style={"background": "#0f172a", "color": "#e2e8f0", "padding": "4px", "borderRadius": "4px"})
 
 
+def compute_channel_vector(*enabled_values: list[str]) -> list[int]:
+    """Convert 4 enabled checklists to binary one-hot vector C = [c0, c1, c2, c3]."""
+    return [1 if bool(e) else 0 for e in enabled_values]
+
+
 def reset_cb_fn(_: Any) -> list[Any]:
     return (
         [DEFAULTS[i]["frequency"] for i in range(4)] +
@@ -81,6 +86,13 @@ def register_server_callbacks(app: Any, gatekeeper: Any) -> None:
     )
     def reset_cb(n: Any) -> list[Any]:
         return reset_cb_fn(n)
+
+    @app.callback(
+        Output("channel-vector", "data"),
+        [Input(f"enabled-{i}", "value") for i in range(4)],
+    )
+    def channel_vector_cb(*enabled_values: list[str]) -> list[int]:
+        return compute_channel_vector(*enabled_values)
 
     register_identify_callback(app, gatekeeper)
 
