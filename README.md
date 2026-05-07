@@ -565,6 +565,34 @@ When the task was **classification on 1-second / 50-sample windows**, the gap wa
 
 The v1.07 task (10-sample window) is too short to fully expose that gap, but the **direction of the result is the same**: LSTM > RNN > FC.
 
+### Reading the numbers: why in-app MAE is lower than training-test MAE
+
+A natural question when running the app: *"the training log said `[lstm] DONE test mae=12.11` but the result panel after I click Identify shows `LSTM MAE = 4.05` — which is right?"* **Both are correct**, measured on different data. Three factors explain the gap:
+
+**1. Default weights are noisy-trained; you click Identify with clean sliders.**
+`weights/lstm_regressor.pt` is the **noisy-trained** snapshot (`α, β ~ U(0, 0.3)` during training). Its training test set is a 1 200-example mix where every example has *some* noise. When you run the app with all sliders at 0, you feed the model a **clean** window — the easiest possible regime. The model has seen plenty of near-clean training examples (whenever both random draws landed near 0), so inference on a clean signal is easier than the average noisy test sample.
+
+| Slider position | Expected single-window LSTM MAE |
+|---|---|
+| α = β = 0 (clean) | ≈ 4 – 7 |
+| α, β ~ U(0, 0.3) average (training test set) | ≈ 12 |
+| α = β = 100 % (outside training) | predictions collapse |
+
+This pattern is the **direct visual confirmation** of the noise-precision regimes described in §12.
+
+**2. Training-test MAE is averaged over ~1 200 windows; the app shows one.**
+The test set is 20 % of 6 000 examples; each has a different `n_start` (anywhere in 10 s) and a fresh α / β draw. Some windows are inherently harder than others — destructive interference at certain `n_start` makes the input low-amplitude while the chosen channel is still near peak. Other windows are easier — chosen channel slowly varying near its own peak with constructive interference in the summation. The 12.11 you see in the log is the mean across that whole distribution; the 4.05 you see in the app is a single sample from it.
+
+**3. The window you happened to pick is on the easy side.**
+For the example above, the ground-truth column was `real ≈ 28.4 → 30.0` over 10 samples — `sin2` near its peak, slowly varying. The model only needs to output a roughly constant value near 30 to do well, which both RNN and LSTM nearly do. Move the window slider to a different position and you'll see the per-window MAE swing between ~2 and ~15. The mean across many positions is what matches the table in §11.
+
+**How to verify:**
+
+- Drag the window slider to positions 0.0, 1.5, 3.0, 4.5, 6.0, 7.5, 9.0 and click Identify each time. The per-window LSTM MAE should range from ~2 to ~15. The mean across a dozen windows should land near 5–6, matching the §11 clean-trained table.
+- Crank α to 30 % with β = 0. The MAE should rise toward ~10–12, matching the noisy-training test-set average. That's the regime the default `*.pt` weights were optimised for.
+
+Both confirmations are evidence that §11 (architecture ranking) and §12 (noise-precision relationship) are reporting the same model behaviour you observe in the running app.
+
 ---
 
 # 12. Relation Between Noise and Precision
