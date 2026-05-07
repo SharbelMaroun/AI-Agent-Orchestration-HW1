@@ -335,9 +335,60 @@ uv run pytest --cov=src --cov-fail-under=85           # ≥ 85 % coverage requir
 
 ---
 
-# Project Report (Summary)
+# Project Report
 
-> The full report lives in [`DOCS/REPORT.md`](DOCS/REPORT.md). This section is a condensed summary covering the architecture, the major design decisions, and the bugs that shaped the final implementation. All image references resolve to [`DOCS/images/`](DOCS/images/).
+> **Authors:** Sharbel Maroun and Amr Safadi worked together on this project from Sharbel's computer.
+
+> Image references resolve to [`DOCS/images/`](DOCS/images/).
+
+## 0. Development Journey
+
+This project started with a session on Gemini, working through the lecture files from Moodle — especially the RNN and LSTM material. NotebookLM was the first attempt, but it errored out and never worked, so Gemini took over for the conceptual exploration.
+
+Gemini's explanations of RNN and LSTM internals were used to build a small intuition-demo app for visualising harmonic synthesis (uploaded into this repo as `fourier-freq-demo-app/`, kept around for reference and removed from the v1.07b commit so the grader can't accidentally run the wrong app — see the note at the top of this README). Claude was then asked to write a description of that demo into `DOCS/Project_Description.md`.
+
+From there the conversation moved to Claude with the full homework requirements and `INSTRUCTIONS.md` (a Gemini-summarised version of the Moodle assignment brief, later renamed to `CLAUDE.md` at the project root so Claude Code auto-loads it on every session). Claude built the foundational `PRD.md`, `PLAN.md`, `TODO.md`, and feature PRDs first — no code before docs. Implementation followed in 23 phases (logged in `DOCS/TODO.md`) using Claude Sonnet 4.6 by default, switching to Opus 4.6 when something took more than three prompts to land.
+
+The project went through three architectural eras:
+
+| Era | Task | Status |
+|---|---|---|
+| v1.00 – v1.04 | RNN / LSTM **classifiers** (which of 4 frequencies is in a 1-second window) | Superseded |
+| v1.05 – v1.06 | RNN / LSTM / FC **regressors** (recover 10 coordinates of a chosen channel) | Superseded |
+| **v1.07 – v1.07c (current)** | Same regression task at **1 kHz / 10 ms / locked `chosen = sin2`** with parametric α/β noise | **Final** |
+
+## 0a. Why the v1.01 Classification Era Mattered (Historical)
+
+Although v1.07 is a regression task, the original v1.01 classification experiment is the **strongest evidence for the lecturer's claim** about LSTM vs RNN, and is referenced in §14 below.
+
+In that setup the network classified **which of 4 frequencies** sat inside a 50-sample / 1-second window. We observed:
+
+- **Vanilla RNN:** loss pinned at `1.386 = ln(4)`, accuracy **stuck at ~25 %** (random chance on 4 balanced classes) for all 150 epochs. The vanishing gradient through 50 `tanh` recurrences killed the learning signal before it reached the early time-steps where frequency information lives.
+- **LSTM:** reached **100 % accuracy from epoch 30 onward**. The additive cell-state update `C_t = f_t ⊙ C_{t-1} + i_t ⊙ C̃_t` provides a gradient highway that does not vanish.
+
+That experiment is the textbook demonstration of the "RNN can't carry low-frequency info, LSTM can" claim. The 10-sample / 10 ms regression in v1.07 is a much shorter sequence where the gap shrinks but stays in the same direction (LSTM 5.55 MAE vs RNN 8.36 MAE, see §11).
+
+## 0b. Notable Engineering Challenges (Resolved)
+
+A handful of issues were significant enough to mention beyond the three v1.07b bugs in §6:
+
+1. **RNN oscillation in v1.01 training** — the vanilla RNN reached 83 % accuracy at epoch 130 then collapsed to 24 % by epoch 150. Fixed by (a) `StepLR` halving the LR every 40 epochs and (b) saving the **best validation checkpoint** rather than the last epoch.
+2. **Non-determinism from `ThreadPoolExecutor`** — the original `Gatekeeper` ran inference in a background thread; PyTorch returned different predictions depending on thread scheduling. Fixed by switching to a soft timeout in the main thread (true hard-kill timeouts aren't cross-platform on Windows without OS signals).
+3. **Architecture-mismatch errors after `hidden_size` changes** — added explicit `state_dict` key validation before `load_state_dict()`, so a config change without a retrain produces a clear "missing keys" error instead of an opaque PyTorch traceback.
+4. **`callbacks_server.py` exceeded 150 lines** — split into `callbacks_server.py`, `callbacks_identify.py`, `callbacks_id_mode.py`, `callbacks_result.py`. All UI files now ≤ 150 lines.
+5. **Windows encoding issue in tests** — `test_version_consistency` crashed on the README's em-dashes under cp1255. Fixed with explicit `encoding="utf-8"`.
+
+## 0c. What Went Well
+
+- **SDK-first design** — every business-logic class lives in `src/fourier/sdk/`, callable without a running Dash server. This made 95 % test coverage achievable.
+- **Config-driven hyperparameters** — switching `hidden_size`, learning rate, epoch count, or noise range never requires a code edit.
+- **Gatekeeper around inference** — central place for logging and retry policy; one fix when the threading issue surfaced.
+- **State-dict key validation** — caught architecture mismatches with a readable error.
+- **Best-model checkpoint** — saved the architecture during RNN oscillation; without it the saved model would have been the 24 % epoch-150 weights.
+
+---
+
+> The summary below is the condensed-for-README version of the project report; further sub-sections come from the in-depth narrative.
 
 ## 1. App Architecture — Two Operational Modes
 
