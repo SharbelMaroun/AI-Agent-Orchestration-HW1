@@ -81,45 +81,9 @@ def test_output_dtype_is_float32() -> None:
     assert result.dtype == np.float32
 
 
-def test_inject_noise_with_zero_sigma_returns_identical_array() -> None:
+def test_process_is_deterministic() -> None:
+    """No noise injection — repeated calls must return identical arrays."""
     extractor = WindowExtractor(_base_config(window_start=0.0))
-    arr = np.linspace(-1.0, 1.0, 50, dtype=float)
-    assert np.array_equal(extractor._inject_noise(arr, sigma=0.0), arr)
-
-
-def test_inject_noise_with_positive_sigma_changes_values() -> None:
-    extractor = WindowExtractor(_base_config(window_start=0.0))
-    arr = np.linspace(-1.0, 1.0, 50, dtype=float)
-    np.random.seed(1)
-    noisy = extractor._inject_noise(arr, sigma=0.2)
-    assert not np.array_equal(noisy, arr)
-
-
-def test_process_with_noise_differs_from_clean_process() -> None:
-    extractor = WindowExtractor(_base_config(window_start=0.0))
-    np.random.seed(7)
-    noisy = extractor.process(_signal(), noise_sigma=0.3)
-    clean = extractor.process(_signal(), noise_sigma=0.0)
-    assert not np.array_equal(noisy, clean)
-
-
-def test_inject_noise_is_reproducible_with_seed() -> None:
-    extractor = WindowExtractor(_base_config(window_start=0.0))
-    arr = np.linspace(-1.0, 1.0, 50, dtype=float)
-    np.random.seed(123)
-    noisy_a = extractor._inject_noise(arr, sigma=0.2)
-    np.random.seed(123)
-    noisy_b = extractor._inject_noise(arr, sigma=0.2)
-    assert np.array_equal(noisy_a, noisy_b)
-
-
-def test_validate_config_raises_value_error_for_negative_noise_sigma() -> None:
-    extractor = WindowExtractor(_base_config(window_start=0.0))
-    with pytest.raises(ValueError):
-        extractor._validate_config(noise_sigma=-0.1)
-
-
-def test_validate_config_raises_value_error_for_noise_sigma_above_half() -> None:
-    extractor = WindowExtractor(_base_config(window_start=0.0))
-    with pytest.raises(ValueError):
-        extractor._validate_config(noise_sigma=0.51)
+    a = extractor.process(_signal())
+    b = extractor.process(_signal())
+    assert np.array_equal(a, b)

@@ -30,19 +30,17 @@ def test_register_clientside_callback_calls_app():
     mock_app.clientside_callback.assert_called_once()
 
 
-def test_register_clientside_callback_outputs_two_charts():
+def test_register_clientside_callback_outputs_three_charts():
     from fourier.ui.callbacks_client import register_clientside_callback
-    from dash import Output
     mock_app = MagicMock()
     register_clientside_callback(mock_app)
     call_args = mock_app.clientside_callback.call_args
     outputs = call_args[0][1]
-    assert len(outputs) == 2
+    assert len(outputs) == 3
 
 
 def test_register_server_callbacks_executes():
     from fourier.ui.callbacks_server import register_server_callbacks
     mock_app = MagicMock()
-    mock_gk = MagicMock()
-    register_server_callbacks(mock_app, mock_gk)
+    register_server_callbacks(mock_app)
     assert mock_app.callback.call_count > 0

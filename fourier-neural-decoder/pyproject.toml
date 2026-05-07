@@ -42,7 +42,14 @@ addopts = "--tb=short"
 
 [tool.coverage.run]
 source = ["src/fourier"]
-omit = ["*/tests/*"]
+omit = [
+    "*/tests/*",
+    # Training scripts are one-shot offline drivers — they're exercised by
+    # running `train_*` directly to regenerate weights, not by unit tests.
+    "*/services/train_rnn.py",
+    "*/services/train_lstm.py",
+    "*/services/train_fc.py",
+]
 
 [tool.coverage.report]
 fail_under = 85

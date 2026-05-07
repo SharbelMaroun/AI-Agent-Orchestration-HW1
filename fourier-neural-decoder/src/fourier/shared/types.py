@@ -15,17 +15,6 @@ class WindowSlice(TypedDict):
     signal_values: list[float]
 
 
-class ClassifierResult(TypedDict):
-    predicted_class: int
-    class_name: str
-    confidence: float
-    probabilities: list[float]
-    runner_up: int
-
-
-class DiffResult(TypedDict):
-    agreement: bool
-    rnn_predicted: str
-    lstm_predicted: str
-    confidence_delta: float
-    runner_up_diff: str
+class RegressorResult(TypedDict):
+    coordinates: list[float]   # 10 reconstructed values
+    mae: float                 # mean abs error vs. ground truth (filled in by caller)

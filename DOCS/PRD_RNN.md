@@ -1,105 +1,53 @@
-# Feature PRD — RNN Classifier
-**Version:** 1.00 | **Parent PRD:** PRD.md (FR-06) | **Owner:** sharbelm
+# Feature PRD — RNN Regressor (Book-Faithful)
+
+**Version:** 1.07
+**Status:** Implemented + trained (v1.07: 1 kHz training, parametric α/β noise)
+**Reference:** `concepts/RNN-BOOK.pdf` (Dr. Segal Yoram, 2025), Eq. 2.13–2.14
 
 ---
 
-## 1. Problem
+## 1. Problem Statement
 
-Given a 1-second window of a composite signal (sum of up to 4 sine waves), identify which of the 4 harmonic channels is the **most dominant** contributor in that window. A plain RNN is the first candidate algorithm due to its simplicity and suitability for short fixed-length sequences.
+Given a length-10 window of summation samples and a length-4 one-hot vector `C` indicating which of the 4 known channels to extract, a manual book-faithful Elman RNN shall **regress the 10 coordinates** of the chosen channel's pure wave at the same time points. This is the "neural-network counterpart" of the deterministic Fourier projection: same input, same target, different algorithm.
 
----
-
-## 2. Algorithm Description
-
-Based on `RNN.md`. At every time step $t$:
-
-$$h_t = \tanh(W \cdot [x_t,\ h_{t-1}] + b)$$
-
-- $x_t$: normalized amplitude at sample $t$ (scalar, 1 feature)
-- $h_{t-1}$: previous hidden state vector (size 64)
-- $W$: shared weight matrix — identical for every step
-- $b$: bias vector
-- Activation: **Tanh** (zero-centered, stable gradients)
-
-The final hidden state $h_{50}$ is passed through a fully-connected layer to produce 4 logits, then softmax to get class probabilities.
-
----
-
-## 3. Functional Requirements
+## 2. Functional Requirements
 
 | ID | Requirement |
 |----|-------------|
-| RNN-FR-01 | `RNNClassifier.__init__` loads weights from path specified in `config/app_config.json` (key: `rnn_model_path`). No hardcoded path. |
-| RNN-FR-02 | `RNNClassifier.process(window: np.ndarray) -> dict` accepts a shape `(50,)` float array, returns `{"class": int, "confidence": float, "probabilities": list[float]}`. |
-| RNN-FR-03 | `RNNClassifier._validate_config()` raises `ValueError` if model file is missing or config key is absent. |
-| RNN-FR-04 | Hidden state initialized to zeros at every call (stateless per request). |
-| RNN-FR-05 | Input is normalized to `[−1, 1]` before being fed to the model (handled by `WindowExtractor`, not the classifier). |
-| RNN-FR-06 | All inference calls are routed through `ModelGatekeeper` for rate limiting and logging. |
-| RNN-FR-07 | File `src/fourier/sdk/rnn_classifier.py` must not exceed 150 lines. |
+| RNN-FR-01 | `BookRNNRegressor(nn.Module)` exposes `W_x`, `W_h`, `b`, `W_y`, `b_y` as explicit `nn.Parameter`s. |
+| RNN-FR-02 | Input width = 1 (sample) + 4 (C one-hot) = 5. The C vector is concatenated to each timestep. |
+| RNN-FR-03 | The recurrence follows book Eq. 2.13–2.14: `z_t = W_x · x_t + W_h · h_{t-1} + b`, `h_t = tanh(z_t)`. |
+| RNN-FR-04 | The same `W_x`, `W_h`, `b` are reused at every time step (weight sharing — Ch. 4). |
+| RNN-FR-05 | Output: `y = W_y · h_T + b_y` ∈ ℝ^10. **No softmax** — this is a regression head, not a classifier. |
+| RNN-FR-06 | Training loss: `nn.MSELoss` on per-sample-amplitude-normalised data. |
+| RNN-FR-07 | Inference: input is normalised by its own `max(|samples|)`; the model output is multiplied back to original scale. |
+| RNN-FR-08 | If `weights/rnn_regressor.pt` is absent, the model loads with random weights and the UI still renders. |
 
----
-
-## 4. Model Architecture
+## 3. Architecture
 
 ```
-Input  →  (1, 50, 1)
-RNN Layer  hidden_size=64, activation=tanh, weight-shared
-Final h_50  →  (1, 64)
-Linear(64 → 4)
-Softmax
-Output  →  (4,) probabilities
+samples ∈ ℝ^(B×10×1) ──┐
+                       ├── concat → x_t ∈ ℝ^5  →  for t = 0..9:
+C ∈ ℝ^(B×4) (broadcast)│                          z_t = W_x·x_t + W_h·h_{t-1} + b
+                       │                          h_t = tanh(z_t)
+                       └─                       → y = W_y·h_10 + b_y ∈ ℝ^10  (regression)
 ```
 
-**Parameter count:**
-- $W$: shape $(64, 64 + 1)$ = 4,160 weights
-- $b$: 64 biases
-- FC: $64 \times 4 + 4 = 260$
-- **Total: ~4,484 parameters**
+## 4. Training Setup
 
----
+- **Sample rate:** `ID_MODE_SR = 1000 Hz`. The full 10-second display contains 10 001 samples; each training example is a **10-sample slice (10 ms)** of the noisy summation.
+- **Random window start:** for each example, `n_start ~ Uniform{0, …, 10000−10}`. The model must learn to extract the chosen channel from any 10-sample slice anywhere in the 10 s range — not just at t = 0.
+- **Parametric noise (per channel, per example):** independent draws α ~ Uniform(0, `alpha_train_max`), β ~ Uniform(0, `beta_train_max`), ε ~ Uniform(−1, +1). The summation uses the perturbed channels:
+  $$y_k(t) = (A_k + \alpha_k A_k \varepsilon_k)\,\sin(2\pi f_k t + \varphi_k + \beta_k\pi\varepsilon_k)$$
+- **Target = clean (un-perturbed) chosen channel** at the same `t_grid`. The model therefore learns to *denoise* — recovering the ideal sine even when the input window is parametrically jittered.
+- Random `(A_k, φ_k)` per channel (frequencies fixed at the 4 ID_MODE_SIGNALS values).
+- Per-sample amplitude normalisation: divide both summation and target by `max(|summed|)`.
+- Optimiser: Adam, `lr = 0.005`, gradient-clip at 1.0.
+- Hidden size: 64.
+- Epochs: 150, batch size 64, 6 000 examples (80/20 train/test).
 
-## 5. Training
+## 5. Out of Scope
 
-| Setting | Value |
-|---------|-------|
-| Framework | PyTorch |
-| Optimizer | Adam, lr=0.001 |
-| Loss | CrossEntropyLoss |
-| Epochs | 200 |
-| Batch size | 64 |
-| Training samples | 10,000 (2,500 per class, balanced) |
-| Data generation | Synthetic sine waves ± 0.05 Hz frequency jitter + Gaussian noise σ=0.05 |
-| Train/val/test split | 70 / 15 / 15 |
-| Weight output | `models/rnn_classifier.pt` |
-
----
-
-## 6. Non-Functional Requirements
-
-| ID | Requirement | Target |
-|----|-------------|--------|
-| RNN-NFR-01 | Inference latency (CPU) | < 500 ms |
-| RNN-NFR-02 | Test accuracy on held-out set | ≥ 90% |
-| RNN-NFR-03 | Unit test coverage for this module | ≥ 85% |
-| RNN-NFR-04 | Zero Ruff violations | 0 errors |
-
----
-
-## 7. Failure Modes & Mitigations
-
-| Failure | Mitigation |
-|---------|-----------|
-| Model file missing at startup | `_validate_config()` raises with clear message; app shows error banner |
-| Input window length ≠ 50 | `process()` raises `ValueError` with expected vs. actual shape |
-| All classes near equal probability (< 40% max) | Result panel flags "Low Confidence — result may be unreliable" |
-| Gradient vanishing during training | Use Tanh (zero-centered); if accuracy < 80% after 200 epochs, fall back to LSTM |
-
----
-
-## 8. Definition of Done
-
-- [ ] `tests/test_rnn_classifier.py` covers `__init__`, `process()`, `_validate_config()`, and edge cases.
-- [ ] `uv run pytest tests/test_rnn_classifier.py` passes with ≥ 85% coverage.
-- [ ] `uv run ruff check src/fourier/sdk/rnn_classifier.py` exits 0.
-- [ ] `models/rnn_classifier.pt` committed with ≥ 90% test-set accuracy.
-- [ ] File length ≤ 150 lines.
+- Bidirectional / multi-layer RNN.
+- GRU.
+- Per-step output (we use only the final hidden state).

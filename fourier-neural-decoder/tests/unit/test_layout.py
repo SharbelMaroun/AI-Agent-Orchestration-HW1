@@ -6,6 +6,7 @@ from dash import html
 from fourier.ui.layout import (
     _build_footer,
     _build_header,
+    _build_sidebar,
     _build_wave_panel,
     build_layout,
     make_slider,
@@ -18,11 +19,13 @@ def _find_ids(component, collected=None):
         collected = []
     if hasattr(component, "id") and component.id:
         collected.append(component.id)
-    if hasattr(component, "children") and component.children:
-        kids = component.children if isinstance(component.children, list) else [component.children]
-        for child in kids:
-            if hasattr(child, "id") or hasattr(child, "children"):
-                _find_ids(child, collected)
+    children = getattr(component, "children", None)
+    if children is None:
+        return collected
+    kids = children if isinstance(children, list) else [children]
+    for child in kids:
+        if hasattr(child, "id") or hasattr(child, "children"):
+            _find_ids(child, collected)
     return collected
 
 
@@ -144,22 +147,28 @@ def test_layout_contains_window_slider():
     assert "window-slider" in ids
 
 
-def test_layout_contains_noise_slider():
+def test_layout_contains_per_wave_alpha_sliders():
     layout = build_layout()
     ids = _find_ids(layout)
-    assert "noise-slider" in ids
+    for i in range(4):
+        assert f"alpha-{i}" in ids
 
 
-def test_layout_contains_noise_label():
+def test_layout_contains_per_wave_beta_sliders():
     layout = build_layout()
     ids = _find_ids(layout)
-    assert "noise-label" in ids
+    for i in range(4):
+        assert f"beta-{i}" in ids
 
 
-def test_layout_contains_algo_selector():
+def test_layout_contains_id_mode_lock_wrappers():
     layout = build_layout()
     ids = _find_ids(layout)
-    assert "algo-selector" in ids
+    for i in range(4):
+        assert f"enabled-wrap-{i}" in ids
+        assert f"fixed-controls-{i}" in ids
+        assert f"noise-controls-{i}" in ids
+
 
 
 def test_layout_contains_identify_btn():
@@ -173,12 +182,12 @@ def test_footer_displays_version():
     assert _contains_text(footer, VERSION)
 
 
-def test_layout_contains_channel_vector_store():
+def test_layout_contains_active_channels_store():
     from dash import dcc
     layout = build_layout()
 
-    def find_store(comp):
-        if isinstance(comp, dcc.Store) and getattr(comp, "id", None) == "channel-vector":
+    def find_store(comp, store_id):
+        if isinstance(comp, dcc.Store) and getattr(comp, "id", None) == store_id:
             return comp
         children = getattr(comp, "children", None)
         if children is None:
@@ -186,14 +195,19 @@ def test_layout_contains_channel_vector_store():
         if not isinstance(children, list):
             children = [children]
         for k in children:
-            result = find_store(k)
+            result = find_store(k, store_id)
             if result is not None:
                 return result
         return None
 
-    store = find_store(layout)
-    assert store is not None
-    assert store.data == [1, 1, 1, 1]
+    active_store = find_store(layout, "active-channels")
+    assert active_store is not None
+    assert active_store.data == [1, 1, 1, 1]
+
+    extract_store = find_store(layout, "extract-vector")
+    assert extract_store is not None
+    # v1.07: extract target is locked to channel 1 (Second Harmonic).
+    assert extract_store.data == [0, 1, 0, 0]
 
 
 def test_four_wave_panels_in_layout():
@@ -250,3 +264,10 @@ def test_sr_slider_range():
     assert slider is not None
     assert slider.min == 1
     assert slider.max == 50
+
+
+def test_sidebar_style_allows_vertical_scroll():
+    sidebar = _build_sidebar()
+    style = getattr(sidebar, "style", {}) or {}
+    assert style.get("overflowY") == "auto"
+    assert style.get("height") == "100%"

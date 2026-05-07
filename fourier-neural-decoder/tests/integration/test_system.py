@@ -44,6 +44,6 @@ def test_no_hardcoded_values():
     for path in src_path.rglob("*.py"):
         if path.name == "constants.py" or path.name == "version.py":
             continue
-        content = path.read_text()
+        content = path.read_text(encoding="utf-8")
         assert "127.0.0.1" not in content
         assert "8050" not in content

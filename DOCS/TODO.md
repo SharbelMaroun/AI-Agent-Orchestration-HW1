@@ -192,7 +192,7 @@
 
 ---
 
-## Phase 5 · SDK — RNN Classifier
+## ~~Phase 5 · SDK — RNN Classifier~~ REMOVED (v1.01 — ML prediction feature removed)
 
 | # | Task | Definition of Done |
 |---|------|--------------------|
@@ -208,7 +208,7 @@
 | 5.10 | [x] Write test: `RNNModel` output_size=4 (4 harmonic classes) | Test passes |
 | 5.11 | [x] Write test: `RNNModel.forward()` accepts input of shape `(1, 50, 1)` | No error raised |
 | 5.12 | [x] Write test: `RNNModel.forward()` returns tensor of shape `(1, 4)` | Test passes |
-| 5.13 | [x] Write test: `RNNModel.forward()` output sums to 1.0 (softmax applied) | Test passes |
+| 5.13 | [x] Write test: `RNNModel.forward()` returns raw logits (no softmax — correct for CrossEntropyLoss) | Test passes |
 | 5.14 | [x] Write test: `RNNModel` hidden state initialized as zeros | Test passes |
 | 5.15 | [x] Write test: `RNNModel` uses tanh activation (not sigmoid) | Test passes |
 | 5.16 | [x] Write test: `RNNModel` uses shared weights across time steps | Test passes — single nn.RNN layer |
@@ -221,7 +221,7 @@
 | 5.23 | [x] Write test: `confidence` equals `max(probabilities)` | Test passes |
 | 5.24 | [x] Define `RNNModel(nn.Module)` in `rnn_classifier.py` | Class defined |
 | 5.25 | [x] Implement `RNNModel.__init__` — `nn.RNN`, `nn.Linear(hidden→4)` | Layers defined |
-| 5.26 | [x] Implement `RNNModel.forward()` — unroll RNN, take `h_n[-1]`, FC layer, softmax | Returns (1,4) tensor |
+| 5.26 | [x] Implement `RNNModel.forward()` — unroll RNN, take `h_n[-1]`, FC layer → raw logits | Returns (1,4) tensor |
 | 5.27 | [x] Implement `RNNClassifier.__init__` — instantiate `RNNModel`, call `_load_weights` | No error if weights_path exists |
 | 5.28 | [x] Implement `RNNClassifier._validate_config` | Raises on bad config |
 | 5.29 | [x] Implement `RNNClassifier._load_weights()` — `torch.load` weights_path | Weights loaded into model |
@@ -234,7 +234,7 @@
 
 ---
 
-## Phase 6 · SDK — LSTM Classifier
+## ~~Phase 6 · SDK — LSTM Classifier~~ REMOVED (v1.01 — ML prediction feature removed)
 
 | # | Task | Definition of Done |
 |---|------|--------------------|
@@ -251,7 +251,7 @@
 | 6.11 | [x] Write test: `LSTMModel` output_size=4 | Test passes |
 | 6.12 | [x] Write test: `LSTMModel.forward()` accepts input of shape `(1, 50, 1)` | No error raised |
 | 6.13 | [x] Write test: `LSTMModel.forward()` returns tensor of shape `(1, 4)` | Test passes |
-| 6.14 | [x] Write test: `LSTMModel.forward()` output sums to 1.0 (softmax applied) | Test passes |
+| 6.14 | [x] Write test: `LSTMModel.forward()` returns raw logits (no softmax — correct for CrossEntropyLoss) | Test passes |
 | 6.15 | [x] Write test: `LSTMModel` has 2 stacked LSTM layers (num_layers=2) | Test passes |
 | 6.16 | [x] Write test: `LSTMModel` has dropout between layers | Test passes |
 | 6.17 | [x] Write test: `LSTMModel` maintains separate cell_state and hidden_state | Test passes |
@@ -272,7 +272,7 @@
 | 6.32 | [x] Write test: `LSTMClassifier` raises `FileNotFoundError` on missing weights | Test passes |
 | 6.33 | [x] Define `LSTMModel(nn.Module)` in `lstm_classifier.py` | Class defined |
 | 6.34 | [x] Implement `LSTMModel.__init__` — `nn.LSTM(num_layers=2)`, `nn.Dropout`, `nn.Linear(hidden→4)` | Layers defined |
-| 6.35 | [x] Implement `LSTMModel.forward()` — run LSTM, take last output, FC, softmax | Returns (1,4) tensor |
+| 6.35 | [x] Implement `LSTMModel.forward()` — run LSTM, take `h_n[-1]`, dropout, FC → raw logits | Returns (1,4) tensor |
 | 6.36 | [x] Implement `LSTMClassifier.__init__` — instantiate `LSTMModel`, call `_load_weights` | No error if weights exist |
 | 6.37 | [x] Implement `LSTMClassifier._validate_config` | Raises on bad config |
 | 6.38 | [x] Implement `LSTMClassifier._load_weights()` — `torch.load` weights_path | Weights loaded |
@@ -284,7 +284,7 @@
 
 ---
 
-## Phase 7 · Gatekeeper
+## ~~Phase 7 · Gatekeeper~~ REMOVED (v1.01 — ML prediction feature removed)
 
 | # | Task | Definition of Done |
 |---|------|--------------------|
@@ -318,7 +318,7 @@
 
 ---
 
-## Phase 8 · Training Service
+## ~~Phase 8 · Training Service~~ REMOVED (v1.01 — ML prediction feature removed)
 
 | # | Task | Definition of Done |
 |---|------|--------------------|
@@ -364,7 +364,7 @@
 
 ---
 
-## Phase 9 · SDK — Result Comparator
+## ~~Phase 9 · SDK — Result Comparator~~ REMOVED (v1.01 — ML prediction feature removed)
 
 | # | Task | Definition of Done |
 |---|------|--------------------|
@@ -724,4 +724,106 @@
 
 ---
 
-*Total tasks: 507 — all must pass before the project is considered complete.*
+*Total tasks (Phases 1–18): 507.*
+
+---
+
+## Phase 19 · RNN + LSTM Regressors (v1.05)
+
+| # | Task | Definition of Done |
+|---|------|--------------------|
+| 19.01 | [x] Author `DOCS/PRD_RNN.md` and `DOCS/PRD_LSTM.md` for the regressor task | Both files present |
+| 19.02 | [x] Add ADR-07, ADR-09, ADR-10 to `DOCS/PLAN.md` | ADRs present and Accepted |
+| 19.03 | [x] Restore `RegressorResult` TypedDict in `shared/types.py` | TypedDict has `coordinates`, `mae` |
+| 19.04 | [x] Restore `load_training_config()` helper in `shared/config_loader.py` | Function present |
+| 19.05 | [x] Author `config/training_config.json` with `rnn`, `lstm`, `data` blocks | File present |
+| 19.06 | [x] Implement `BookRNNRegressor` with explicit `W_x`, `W_h`, `b`, `W_y`, `b_y` and concat-C-to-each-step | `sdk/rnn_regressor.py` ≤ 150 lines |
+| 19.07 | [x] Implement `BookLSTMRegressor` with separate `W_f`, `W_i`, `W_C`, `W_o`, forget-bias = 1, addition cell update | `sdk/lstm_regressor.py` ≤ 150 lines |
+| 19.08 | [x] `forward()` returns raw 10-d real values (no softmax — regression) | Verified |
+| 19.09 | [x] Per-sample amplitude normalisation in both training and inference | `_generate_dataset` divides by `max(\|summed\|)`; `process()` rescales output |
+| 19.10 | [x] `_generate_dataset` builds (samples, C, target) triples shared by both trainers | `services/train_rnn.py` |
+| 19.11 | [x] `train_rnn` and `train_lstm` use `nn.MSELoss` and Adam | Both files present |
+| 19.12 | [x] Wire RNN + LSTM into `callbacks_identify.py` via lazy singletons | Both run on each Identify click |
+| 19.13 | [x] Extend result-panel table to columns: n / Fourier / RNN / LSTM / real / err(F) plus MAE summary | `callbacks_result.py` updated |
+| 19.14 | [x] Run training and commit weights | `weights/rnn_regressor.pt`, `weights/lstm_regressor.pt` saved |
+| 19.15 | [x] Add unit tests for both regressors (output shape 10, separate params, missing/corrupt weights, C changes output) | 19 tests, all passing |
+| 19.16 | [x] Bump `version.py` and `app_config.json` to `"1.05"` | Both updated |
+| 19.17 | [x] Add `ENTRY-019` to `DOCS/Prompt_Log.md` | Entry present |
+| 19.18 | [x] Update `DOCS/Project_Description.md` with reframed regression task description | Notice updated |
+
+---
+
+*Total tasks (Phases 1–19): 525.*
+
+---
+
+## Phase 20 · FC Regressor Baseline (v1.06)
+
+| # | Task | Definition of Done |
+|---|------|--------------------|
+| 20.01 | [x] Author `DOCS/PRD_FC.md` Feature PRD | File present, comparison table included |
+| 20.02 | [x] Add ADR-11 (FC as non-recurrent baseline) to `DOCS/PLAN.md` | ADR present and Accepted |
+| 20.03 | [x] Implement `BookFCRegressor(nn.Module)` with `W_1`, `b_1`, `W_2`, `b_2`, ReLU, no time loop | `sdk/fc_regressor.py` present, ≤ 150 lines |
+| 20.04 | [x] FC accepts both `(B, T, 1)` and `(B, T)` inputs via reshape | Verified by test |
+| 20.05 | [x] `forward()` returns raw 10-d real values (regression, no softmax) | Verified |
+| 20.06 | [x] Same per-sample amplitude normalisation as RNN/LSTM regressors | Both training and inference |
+| 20.07 | [x] `services/train_fc.py` reuses `_generate_dataset` from `train_rnn` | Identical training data |
+| 20.08 | [x] Add `fc` block to `config/training_config.json` | File updated |
+| 20.09 | [x] Wire FC into `callbacks_identify.py` via `_get_fc()` lazy singleton | All four methods run on each Identify click |
+| 20.10 | [x] Add 4th column ("FC") to result panel | `callbacks_result.py` updated |
+| 20.11 | [x] Run training and commit `weights/fc_regressor.pt` | Test MAE 0.1922 (12.5 s) |
+| 20.12 | [x] Add unit tests for `BookFCRegressor` and `FCRegressor` | 13 tests, all passing |
+| 20.13 | [x] Bump `version.py` and `app_config.json` to `"1.06"` | Both updated |
+| 20.14 | [x] Add `ENTRY-020` to `DOCS/Prompt_Log.md` | Entry present |
+
+---
+
+## Phase 21 · Parametric α/β Noise Model (v1.07)
+
+| # | Task | Definition of Done |
+|---|------|--------------------|
+| 21.01 | [x] Update `DOCS/PRD.md` FR-09 to specify the parametric α/β model | FR-09 rewritten with the formula |
+| 21.02 | [x] Add ADR-007 (Parametric noise) to `DOCS/PLAN.md` | ADR present and Accepted |
+| 21.03 | [x] Replace `noise_default`/`noise_max` in `config/app_config.json` with `alpha_default`, `beta_default`, `alpha_max`, `beta_max` | Config updated, `config_loader` required-keys updated |
+| 21.04 | [x] Refactor `sdk/signal_generator.py` to apply `(A+αAε)·sin(2πft+φ+βπε)` with one ε~Uniform(-1,1) per evaluation | File ≤ 150 lines, unit tests pass |
+| 21.05 | [x] Strip noise injection from `sdk/window_extractor.py` — make it purely deterministic | `_inject_noise` removed, tests updated |
+| 21.06 | [x] Replace 4 noise sliders in `ui/layout.py` with 8 α/β sliders | Per channel: `alpha-{i}` + `beta-{i}` sliders, both 0–100 % |
+| 21.07 | [x] Update `ui/callbacks_server.py` — drop `_noise_label`, add α/β to reset and value-display | Reset returns 32 outputs (24 + 8) |
+| 21.08 | [x] Update `ui/callbacks_client.py` — JS uses single ε per channel per frame, perturbs A and φ | `perturbed()` helper, Uniform(-1,1) draw |
+| 21.09 | [x] Update `services/train_rnn.py::_generate_dataset` to use parametric noise; target = clean chosen channel | Training reflects new model |
+| 21.10 | [x] Add `alpha_train_max`, `beta_train_max` to `config/training_config.json` | Defaults: 1.0 each |
+| 21.11 | [x] Update tests for new model (window_extractor, layout, callbacks_server, callbacks_client, ui_callbacks integration, shared_constants) | All tests pass |
+| 21.12 | [x] Retrain RNN, LSTM, FC at the new noise model | Weights regenerated |
+
+---
+
+## Phase 22 · ID-Mode 1 kHz Sample Rate (v1.07)
+
+| # | Task | Definition of Done |
+|---|------|--------------------|
+| 22.01 | [x] Add ADR-008 (ID-mode 1 kHz) to `DOCS/PLAN.md` | ADR present and Accepted |
+| 22.02 | [x] Update `DOCS/PRD.md` FR-04 + FR-06 for the new window semantics (10 samples / 0.01 s, 1-sample slider step) | Sections rewritten |
+| 22.03 | [x] Set `ID_MODE_SR = 1000` in `shared/constants.py` | Constant updated |
+| 22.04 | [x] Set `window_duration: 0.01` in `config/app_config.json` | Config updated |
+| 22.05 | [x] Layout window slider: `min=0.0, max=9.99, step=0.001` | `ui/layout.py` updated |
+| 22.06 | [x] Clientside JS: `sumSr = 1000`, marker size `1.5 px`, rect width `0.01 s` | `ui/callbacks_client.py` updated |
+| 22.07 | [x] Training generator: random `n_start ~ Uniform{0, 10000−10}` per example; t_grid built from it | `train_rnn::_generate_dataset` updated |
+| 22.08 | [x] Tests updated for 1 kHz traces (test_callbacks_identify, test_callbacks_client) | All tests pass |
+| 22.09 | [x] Retrain RNN, LSTM, FC at 1 kHz | Test MAE: RNN 1.23, LSTM 1.23, FC 1.19 |
+| 22.10 | [x] Bump `version.py` and `app_config.json` to `"1.07"` | Pending — see TODO 23.01 |
+
+---
+
+## Phase 23 · v1.07 Documentation Sync
+
+| # | Task | Definition of Done |
+|---|------|--------------------|
+| 23.01 | [x] Bump `shared/version.py` and `app_config.json` `version` to `"1.07"` | Both updated |
+| 23.02 | [x] Update PRD.md, PRD_RNN/LSTM/FC.md, PLAN.md (ADR-007, ADR-008), TODO.md (Phases 21–22) | Done in this session |
+| 23.03 | [x] Append Prompt_Log entries `ENTRY-022` (parametric noise) and `ENTRY-023` (1 kHz) | Done |
+| 23.04 | [x] Update `REPORT.md` results section with new MAE table and noise-model description | Done |
+| 23.05 | [x] Update `fourier-neural-decoder/README.md` config table and noise-slider description | Done |
+
+---
+
+*Total tasks (Phases 1–23): 565.*

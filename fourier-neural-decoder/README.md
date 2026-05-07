@@ -1,8 +1,8 @@
 # Fourier Neural Decoder
 
-**Version 1.01** — Interactive Fourier synthesis and ML-powered signal identification.
+**Version 1.07** — Interactive Fourier synthesis and ML-powered signal regression.
 
-Build composite waveforms from up to 4 harmonic channels, then use trained RNN or LSTM classifiers to identify the dominant frequency class from any 1-second window of the signal.
+Build composite waveforms from up to 4 harmonic channels, then use trained **RNN, LSTM, and FC** regressors to recover the 10 coordinates of any chosen channel from a 10-sample (10 ms) window of the noisy summation. Identification mode samples at **1000 Hz**; per-channel **α (amplitude) and β (phase)** sliders inject parametric noise.
 
 ---
 
@@ -10,7 +10,7 @@ Build composite waveforms from up to 4 harmonic channels, then use trained RNN o
 
 | | |
 |---|---|
-| **Version** | 1.01 |
+| **Version** | 1.07 |
 | **App title** | Fourier Synthesis |
 | **Entry point** | `uv run fourier-app` |
 | **Default URL** | http://127.0.0.1:8050 |
@@ -45,13 +45,22 @@ cp .env-example .env
 Train model weights (required before first run):
 
 ```bash
-uv run python -m fourier.services.train_models
+uv run python -c "
+from pathlib import Path
+from fourier.shared.config_loader import load_training_config
+from fourier.services.train_rnn import train_rnn
+from fourier.services.train_lstm import train_lstm
+from fourier.services.train_fc import train_fc
+cfg = load_training_config(); data_cfg = cfg['data']
+for name, fn, key in [('rnn', train_rnn, 'rnn'), ('lstm', train_lstm, 'lstm'), ('fc', train_fc, 'fc')]:
+    print(name, fn(cfg[key], data_cfg, Path(cfg[key]['weights_path'])))
+"
 ```
 
 Launch the app:
 
 ```bash
-uv run fourier-app
+uv run python -m fourier
 ```
 
 Open http://127.0.0.1:8050 in your browser.
@@ -66,18 +75,18 @@ All runtime settings live in versioned JSON files — nothing is hardcoded in so
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `version` | string | `"1.01"` | App version |
-| `resolution` | int | `500` | Points on the continuous time axis |
+| `version` | string | `"1.07"` | App version |
+| `resolution` | int | `500` | Points on the continuous overlay time axis |
 | `duration` | int | `10` | Signal duration in seconds |
 | `debug` | bool | `false` | Dash debug mode |
 | `host` | string | `"127.0.0.1"` | Server bind address |
 | `port` | int | `8050` | Server port |
-| `window_duration` | float | `1.0` | ML analysis window length (seconds) |
-| `window_points` | int | `50` | Samples in the analysis window |
-| `noise_default` | float | `0.0` | Default noise σ for the slider |
-| `noise_max` | float | `0.5` | Maximum allowed noise σ |
-| `rnn_model_path` | string | `"models/rnn_classifier.pt"` | Path to RNN weights |
-| `lstm_model_path` | string | `"models/lstm_classifier.pt"` | Path to LSTM weights |
+| `window_duration` | float | `0.01` | Analysis window length in seconds (10 samples / 1000 Hz) |
+| `window_points` | int | `10` | Samples in the analysis window |
+| `alpha_default` / `alpha_max` | int | `0` / `100` | Per-channel amplitude-noise slider default / max (percent of A) |
+| `beta_default` / `beta_max` | int | `0` / `100` | Per-channel phase-noise slider default / max (percent of π) |
+
+Model weights are auto-discovered at `weights/{rnn,lstm,fc}_regressor.pt` via `config/training_config.json`.
 
 ### `config/rate_limits.json`
 
@@ -117,40 +126,34 @@ When dots mode is active, a monospace box below the channel panel shows the nume
 
 ---
 
-## 6. Usage: ML Identification
+## 6. Usage: ML Identification (Regression)
+
+### Identification Mode
+
+Click **Enter Identification Mode** to lock all 4 channels to fixed reference signals (frequencies 0.5, 1.0, 1.5, 2.0 Hz) and force the Σ-chart to render at 1000 Hz (10 001 dots over 10 s). The Wave-to-Extract is locked to channel 1 (1.0 Hz) → C = [0, 1, 0, 0].
 
 ### Selecting the Analysis Window
 
-The **Window** slider (0.0 – 9.0 s) on the summation chart selects the 1-second segment to analyse. The selected window is highlighted with an amber vertical band on the summation chart.
+The **Window** slider (0.000 – 9.990 s, step 0.001 s) selects 10 consecutive samples (10 ms) of the noisy summation. The amber rectangle on the Σ-chart shows the picked window — at this scale it appears as a thin vertical line.
 
-### Choosing the Algorithm
+### Parametric α/β Noise
 
-The **Algorithm** radio selector offers three modes:
+Each of the 4 channels has **two noise sliders** (8 total):
 
-| Mode | Behaviour |
-|------|-----------|
-| **RNN** | Runs the single-layer RNN classifier only |
-| **LSTM** | Runs the 2-layer LSTM classifier only |
-| **Both** | Runs both classifiers and shows a side-by-side diff |
+- **α — Amplitude noise (%)** — slider 0–100; perturbs A.
+- **β — Phase noise (%)** — slider 0–100; perturbs φ.
 
-### Noise Injection
+The signal generated for channel *k* is:
 
-The **Noise** slider (0.0 – 0.5) adds Gaussian noise `N(0, σ²)` to the normalised window *before* inference. A label shows the noise level: **Clean** (σ=0), **Light** (σ≤0.15), **Medium** (σ≤0.30), **Heavy** (σ>0.30). Use this to test model robustness.
+```
+y_k(t) = (A + α·A·ε) · sin(2π·f·t + φ + β·π·ε),    ε ~ Uniform(-1, +1)
+```
 
-Click **Identify** to run inference.
+A single ε is drawn per channel per evaluation (parametric jitter, not per-sample additive noise). At α = 100 %, the effective amplitude swings symmetrically in [0, 2A]; at β = 100 %, the phase shifts symmetrically in [−π, +π].
 
-### Reading the Single-Algorithm Results Panel
+### Running Inference
 
-The result panel shows:
-- **Predicted class** name and confidence percentage
-- **4 probability bars** — one per harmonic class, scaled proportionally
-
-### Reading the Both-Mode Diff Summary
-
-When **Both** is selected, two result panels appear side by side (RNN left, LSTM right), followed by a **Diff Summary** panel showing:
-- **Agreement** — green YES / red NO badge
-- **Confidence delta** — `|conf_RNN − conf_LSTM|` to 4 decimal places
-- **Runner-up diff** — description of the second-highest class from each model
+Click **Identify**. All three regressors (RNN, LSTM, FC) plus a closed-form Fourier least-squares baseline run on the same 10-sample window and the same C one-hot vector. The result panel shows the four reconstructions side-by-side against the ground-truth pure-channel coordinates, plus per-method MAE.
 
 ---
 
@@ -177,33 +180,34 @@ When **Both** is selected, two result panels appear side by side (RNN left, LSTM
 fourier-neural-decoder/
 ├── src/fourier/
 │   ├── sdk/
-│   │   ├── signal_generator.py      # Continuous + discrete signal synthesis
-│   │   ├── window_extractor.py      # Slice, normalise, inject noise
-│   │   ├── rnn_classifier.py        # RNN model + inference
-│   │   ├── lstm_classifier.py       # LSTM model + inference
-│   │   └── result_comparator.py     # Compare RNN vs LSTM outputs
+│   │   ├── signal_generator.py      # Sine generation with parametric α/β noise
+│   │   ├── window_extractor.py      # Pure deterministic slice + normalise (no noise)
+│   │   ├── rnn_regressor.py         # Book-faithful Elman RNN regressor
+│   │   ├── lstm_regressor.py        # Book-faithful LSTM regressor
+│   │   └── fc_regressor.py          # 2-layer MLP baseline
 │   ├── services/
-│   │   └── train_models.py          # Offline training script
+│   │   ├── train_rnn.py             # Training pipeline + shared _generate_dataset
+│   │   ├── train_lstm.py            # Reuses _generate_dataset
+│   │   └── train_fc.py              # Reuses _generate_dataset
 │   ├── ui/
 │   │   ├── layout.py                # Dash component tree
-│   │   ├── callbacks_client.py      # Client-side JS chart callback
-│   │   ├── callbacks_server.py      # Server callbacks (toggle, reset, noise label)
-│   │   ├── callbacks_identify.py    # Identify callback + pure logic
+│   │   ├── callbacks_client.py      # Client-side JS chart callback (parametric noise in JS)
+│   │   ├── callbacks_server.py      # Toggle / reset / value-display callbacks
+│   │   ├── callbacks_identify.py    # Identify callback (Fourier + 3 NN regressors)
 │   │   └── callbacks_result.py      # Result panel rendering helpers
 │   ├── shared/
-│   │   ├── version.py               # VERSION = "1.01"
-│   │   ├── constants.py             # WAVE_NAMES, COLORS, DEFAULTS, PI2
-│   │   ├── types.py                 # TypedDicts: ChannelConfig, ClassifierResult, DiffResult
-│   │   └── config_loader.py         # load_app_config(), load_rate_limits()
-│   ├── gatekeeper.py                # Rate limiting + retry for all ML calls
-│   ├── app.py                       # create_app() factory
+│   │   ├── version.py               # VERSION = "1.07"
+│   │   ├── constants.py             # WAVE_NAMES, COLORS, DEFAULTS, ID_MODE_SR=1000, EXTRACT_POINTS=10
+│   │   ├── types.py                 # TypedDicts
+│   │   └── config_loader.py         # load_app_config(), load_training_config()
 │   └── __main__.py                  # Entry point
 ├── tests/
 │   ├── unit/                        # Per-module unit tests
 │   └── integration/                 # End-to-end flow tests
-├── models/
-│   ├── rnn_classifier.pt
-│   └── lstm_classifier.pt
+├── weights/
+│   ├── rnn_regressor.pt
+│   ├── lstm_regressor.pt
+│   └── fc_regressor.pt
 ├── config/
 │   ├── app_config.json
 │   ├── rate_limits.json
