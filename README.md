@@ -19,7 +19,7 @@ A browser-based educational tool: compose composite waveforms from up to four ha
 6. [Documentation Map](#documentation-map)
 7. [Project Directory](#project-directory)
 8. [Contributing](#contributing)
-9. [Project Report (Summary)](#project-report-summary)
+9. [Project Report — Fourier Neural Decoder](#project-report--fourier-neural-decoder)
 
 ---
 
@@ -337,11 +337,13 @@ uv run pytest --cov=src --cov-fail-under=85           # ≥ 85 % coverage requir
 
 ---
 
-# Project Report
+# Project Report — Fourier Neural Decoder
+
+**Version:** 1.07c | **Date:** 2026-05-07
 
 > **Authors:** Sharbel Maroun and Amr Safadi worked together on this project from Sharbel's computer.
 
-> Image references resolve to [`DOCS/images/`](DOCS/images/).
+> This is the **official, complete project report**. All image references resolve to [`DOCS/images/`](DOCS/images/). The report is organised as: development history (§0–§5), the v1.07b bug stories (§6), comparative analysis (§11–§14), implementation-choice analysis (§15), mathematical deep-dive (§16), engineering-issue catalogue (§17), and the CLAUDE.md submission checklist (§18).
 
 ## 0. Development Journey
 
@@ -857,3 +859,155 @@ The FC uses `ReLU`. The literature on **sinusoidal neural networks** (SIREN, FLM
 | `sin` activation in FC | activation swap | FC most (untried) |
 
 **Read the rest of the report knowing that the rankings we observe are real but not unique** — we ran a comparison under one set of choices that respects the lecturer's spec and is internally consistent. Different reasonable choices would shift specific numbers; the high-level "LSTM ≥ RNN, FC is the cheap baseline" pattern is robust across all the regimes we explored.
+
+---
+
+# 16. Deep-Dive: Why Vanilla RNN Fails on Long Sequences and How LSTM Fixes It
+
+This was the single most technically significant finding of the project. Sections §11 and §14 above summarise the empirical result; this section gives the mathematical explanation we worked through during the v1.01 classification phase and that still drives the v1.07c regression results.
+
+## 16.1 The vanilla RNN update
+
+The vanilla RNN cell evolves the hidden state via:
+
+$$h_t = \tanh\!\big(W \cdot [x_t,\, h_{t-1}] + b\big)$$
+
+During backpropagation through time, the gradient of the loss with respect to an early hidden state has to flow **backwards through every intervening time-step**. At each step the gradient is multiplied by `W` and by the derivative of `tanh`. Since `|tanh'(z)| ≤ 1` everywhere (and in fact ≪ 1 in most of the input range), repeated multiplication across `T` steps drives the gradient toward zero exponentially in `T`. This is the **vanishing-gradient problem**, and it is structural — no amount of clever initialisation eliminates it.
+
+**What we observed (v1.01 classification, T = 50 steps):**
+
+- Loss pinned at exactly **`1.386 ≈ ln(4)`** across all 150 training epochs. That is the theoretical loss of a four-class classifier predicting uniformly at random.
+- Accuracy stuck at **~25 %** — exactly chance on a balanced 4-class dataset.
+- No useful learning signal reached the early time-steps where frequency-defining information lives.
+
+A second run with two stacked vanilla-RNN layers made things **worse** rather than better — stacking compounds the vanishing gradient across depth as well as time.
+
+## 16.2 The LSTM cell-state highway
+
+The LSTM replaces the single hidden state with a **cell state** `C_t` that is updated additively, and protects this update with three learned gates:
+
+$$f_t = \sigma\!\big(W_f \cdot [h_{t-1}, x_t] + b_f\big) \quad \text{(forget)}$$
+$$i_t = \sigma\!\big(W_i \cdot [h_{t-1}, x_t] + b_i\big) \quad \text{(input)}$$
+$$\tilde{C}_t = \tanh\!\big(W_C \cdot [h_{t-1}, x_t] + b_C\big) \quad \text{(candidate)}$$
+$$C_t = f_t \odot C_{t-1} + i_t \odot \tilde{C}_t \quad \text{(cell update)}$$
+$$o_t = \sigma\!\big(W_o \cdot [h_{t-1}, x_t] + b_o\big) \quad \text{(output gate)}$$
+$$h_t = o_t \odot \tanh(C_t)$$
+
+The critical line is `C_t = f_t ⊙ C_{t-1} + i_t ⊙ C̃_t`. This **additive** update creates a direct gradient path from `C_t` back to `C_{t-1}` that does **not** multiply through the same matrix repeatedly — gradients flow along the cell-state highway essentially undecayed. When the forget gate stays near 1, information from arbitrarily far in the past can persist; when the input gate gates select what to write, only useful new content modifies it.
+
+**What we observed (v1.01 classification, T = 50 steps):**
+
+- LSTM reached **100 % accuracy from epoch 30 onward** and stayed stable through epoch 100.
+- Loss curve smooth — no plateau, no oscillation under `lr = 0.0003`.
+
+## 16.3 Instability we observed in early LSTM training
+
+Even the LSTM was not bullet-proof. With `lr = 0.001` we saw:
+
+```
+LSTM epoch 50/100   loss=0.7442  acc=100.00%
+LSTM epoch 80/100   loss=0.7437  acc=100.00%
+LSTM epoch 90/100   loss=1.2409  acc= 50.88%   ← sudden collapse
+LSTM epoch 100/100  loss=0.7598  acc= 97.12%
+```
+
+The optimiser overshot a good local minimum at epoch 90 and partially recovered by epoch 100. We fixed this by reducing `lr` from `0.001` → `0.0003` (a factor-of-3 cut). Both runs share architecture and data; the only change is the learning rate, which determines whether or not the optimiser jumps out of the basin of attraction.
+
+**Lesson:** even gated cells are not free of optimisation issues; learning-rate sensitivity is real. We've kept LSTM `lr = 0.005` in the v1.07c training-config because the task (regression on 10-sample windows) is much milder than v1.01 classification on 50-sample windows — but we've confirmed the v1.07c LSTM is similarly stable.
+
+## 16.4 RNN confidently-wrong: a real observed case (v1.01)
+
+During v1.01 app testing we recorded this concrete example:
+
+| Channel | Frequency | Amplitude | Phase |
+|---|---|---|---|
+| Fundamental (active) | 0.5 Hz | 82 | 0 |
+| Fourth Harmonic (active) | 2.0 Hz | 10 | 4.7 rad |
+
+Window: t = 1.0 s · Noise: σ = 0 · Algorithm: Both.
+
+| Model | Prediction | Confidence | Correct? |
+|---|---|---|---|
+| LSTM | Fundamental | 100 % | ✅ correct (amplitude ratio 8.2 : 1, dominantly low-frequency) |
+| RNN | Fourth Harmonic | 96 % | ❌ **confidently wrong** |
+
+The signal was unambiguous to a human eye — a slow large U-shape (0.5 Hz) with tiny 2 Hz ripples on top. The RNN fixated on the fast ripple pattern and ignored the dominant envelope entirely. **Why this happens:** the RNN's hidden state at the output step has long forgotten the slow envelope (vanishing gradient), so its prediction is driven by the most recent, fastest variation. The LSTM's cell state has carried the slow envelope across all 50 time-steps and recognises which channel dominates.
+
+This case is the per-instance counterpart of the §11 / §14 aggregate finding: it is not just that the RNN is *less accurate on average*, it is *confidently wrong in a structured way* on inputs where slow content dominates.
+
+## 16.5 v1.01 vs v1.07 — same story, different scale
+
+| | v1.01 classification | v1.07c regression |
+|---|---|---|
+| Window | 1 s × 50 samples at 50 Hz | 10 ms × 10 samples at 1 kHz |
+| Sequence length | 50 steps | 10 steps |
+| Vanishing-gradient regime | Severe (RNN at chance) | Mild (RNN works, but worse than LSTM) |
+| LSTM advantage | Massive (100 % vs 25 %) | Moderate (33 % MAE reduction) |
+
+**Both regimes confirm the lecturer's claim** that LSTM extracts all frequencies while RNN preferentially handles fast variation. The classification setup just amplifies the gap to its visible maximum.
+
+---
+
+# 17. Detailed Engineering Issues Encountered
+
+The README narrative above summarises the v1.07b bug stories and §0b lists the most consequential resolved engineering issues as one-liners. The following table records every concrete problem we encountered and fixed, in the format we'd use in a project post-mortem. Each row is a real occurrence — the fixes are committed to git.
+
+## 17.1 Neural-network training issues
+
+| # | Problem | Root cause | Fix |
+|---|---|---|---|
+| **1** | RNN oscillating between 83 % and 24 % accuracy across training epochs (v1.01) | Fixed LR was high enough to jump out of a good local minimum late in training | Added `StepLR` scheduler (`lr` halves every 40 epochs) **and** save the **best validation checkpoint** rather than last-epoch weights |
+| **2** | Saved RNN weights had 24 % accuracy despite 83 % being reached mid-training (v1.01) | Standard "save on training loop end" pattern picks the wrong epoch when training oscillates | `copy.deepcopy(model.state_dict())` whenever validation accuracy hits a new max; save only that copy at the end |
+| **3** | `noise_std = 0.15` destroyed the 0.5 Hz class entirely (v1.01) | A 0.5 Hz signal in a 1-second window shows only half a cycle; 15 % additive noise drowns the half-cycle shape | Reduced to `noise_std = 0.1` (later replaced entirely by the parametric α/β model in v1.07) |
+| **4** | Training noise-vs-clean inference mismatch | If we trained with heavy noise, the clean-input use case received unfamiliar inputs and predicted poorly | Pin training noise at a level (`σ = 0.1` in v1.01, `α = β ≤ 0.3` in v1.07c) that matches the *common operating regime* of the slider, not the worst case |
+| **5** | Original training set of 1 000 samples (250/class) failed to generalise across random phase | Too few examples to cover the phase-space at the chosen window length | Increased to 4 000 (v1.01) and 6 000 (v1.07c) — a 4× – 6× ramp |
+| **6** | Each `train_*` call produced different weights from the same code | No fixed RNG seed for the data generator | Added `"seed": 42` to `training_config.json`; both data and PyTorch initialisation now reproducible |
+| **7** | Hyper-parameters (`hidden_size`, `num_layers`, `dropout`) hardcoded inside `callbacks_identify.py` | Violated CLAUDE.md §8 (no hardcoding) and made architecture changes require code edits | Moved every hyper-parameter into `training_config.json`; UI only reads `cfg[name]["hidden_size"]` etc. |
+| **8** | Architecture-mismatch errors on `load_state_dict()` after `hidden_size` change | Old `.pt` file on disk + new architecture config = silent or cryptic PyTorch error | Added explicit key-set validation before load; raises `ValueError("Corrupted weights — missing keys: …")` immediately |
+| **9** (v1.07b) | All three regressors collapsed to predict ≈ 0 (Bug A) | Per-sample normalisation `target / max(\|summed\|)` blew up in destructive-interference troughs | Removed the normalisation; use raw amplitude units for both inputs and targets |
+| **10** (v1.07c) | Per-window error in app stayed at ±30 – 45 even after Bug A fix | Training drew `chosen` uniformly across 4 channels but inference always sends `C = [0, 1, 0, 0]` — only 25 % of training examples exercised the deployed task | Locked `chosen = 1` in `_generate_dataset`; quadrupled the relevant training signal |
+
+## 17.2 App-development issues
+
+| # | Problem | Root cause | Fix |
+|---|---|---|---|
+| **1** | `callbacks_server.py` exceeded 150 lines as more callbacks accumulated | One file accumulated hub responsibilities + identify logic + result rendering | Split into `callbacks_server.py` (registration hub), `callbacks_identify.py` (identify callback + pure logic), `callbacks_result.py` (rendering helpers), `callbacks_id_mode.py` (mode-toggle), `layout_id_mode.py` (mode-specific UI builders). All now ≤ 150 lines |
+| **2** | All callback logic lived inside nested closures, untestable | Dash idiomatic pattern (`@app.callback(…) def cb(): …`) puts logic inside non-importable function objects | Extracted every callback body into module-level pure functions (`toggle_wave_fn`, `toggle_sr_fn`, `update_vector_fn`, `compute_channel_vector`, `_run_identify`, …). Registered callbacks delegate to these functions. Tests import the pure functions directly without a running Dash server. |
+| **3** | `Gatekeeper` timeout via `concurrent.futures.ThreadPoolExecutor` produced non-deterministic PyTorch outputs | Running PyTorch inference in a background thread on Windows scheduled differently each run | Replaced with a soft timeout: run inference in the main thread, measure elapsed time, log a warning if it exceeds `timeout_seconds`. (Hard-kill timeouts aren't cross-platform on Windows without OS-level signals.) |
+| **4** | `test_version_consistency` failed on Windows with `UnicodeDecodeError: cp1255` | README contains UTF-8 em-dashes that the Windows default codec couldn't read | Added `encoding="utf-8"` to every `read_text()` call in the test suite |
+| **5** | `from dash import dcc, html, Store` raised ImportError | `Store` lives at `dash.dcc.Store`, not the top-level `dash` namespace | Use `dcc.Store(…)` everywhere; updated all layout / store-creation sites |
+| **6** | Original clientside JS callback took 25 separate inputs (4 enabled + 4 freq + 4 amp + …) | No unified representation of which channels were active | Introduced one-hot vector `C = [c₀, c₁, c₂, c₃]` stored in `dcc.Store(id="active-channels")`; computed server-side from the 4 enabled checklists; clientside reads `if (!C \|\| C[i] !== 1) continue`. Reduced JS callback inputs from 25 → 22. |
+| **7** (v1.07) | Identification mode laggy at 1 kHz (10 K dots × 3 charts × per-pixel slider drag) | Plotly default SVG renderer + drag-mode sliders + 120 K SVG nodes laid out per pixel | Switched all traces to `type: 'scattergl'` (single canvas per chart) + α / β sliders to `updatemode="mouseup"` (one render per slider release). |
+| **8** (v1.07b) | Per-epoch logs absent during training | `_train_loop.fit()` ran a silent loop | Added `_epoch_metrics()` + `LOG_EVERY = 5`; logs `train mse / mae / acc` and `test mse / mae / acc` every 5 epochs (plus epoch 1 and final). Uses standard `logging` module per CLAUDE.md §9. |
+
+## 17.3 Lessons distilled
+
+| # | Lesson |
+|---|---|
+| 1 | **Vanilla RNN is practically unusable for sequences longer than ~20 steps** — always prefer LSTM or GRU. The v1.01 50-sample experiment is the canonical demonstration. |
+| 2 | **Save the best checkpoint, not the last epoch.** Training loss / accuracy can oscillate; the final state is often not the best. `copy.deepcopy(state_dict())` at every new accuracy peak is cheap. |
+| 3 | **Learning-rate schedulers are not optional for RNN training.** A fixed LR will eventually overshoot a good minimum. `StepLR` with halving is a reasonable default. |
+| 4 | **Noise level must match window length.** A 0.5 Hz signal in a 1-second window shows only half a cycle; 15 % noise destroys the frequency information. The v1.07 parametric α/β model with a strict 0.3 cap is the v1.07c equivalent of this rule. |
+| 5 | **`ThreadPoolExecutor` + PyTorch = non-determinism on Windows.** CPU-bound ML inference should stay in the main thread; soft timeouts via elapsed-time measurement are the cross-platform-safe choice. |
+| 6 | **Testability requires pure functions.** Dash callback closures cannot be imported or called directly; always extract the logic body into module-level functions. |
+| 7 | **Config-driven hyper-parameters pay off the first time you change them.** A `hidden_size` bump from 64 to 128 is a one-line JSON edit instead of a code change spread across UI, SDK, and training. |
+| 8 | **Integration tests must be architecture-agnostic.** Hardcoding `hidden_size = 64` in tests means every model update breaks them; tests should read the same config the app reads. |
+| 9 | **Don't normalise what's already bounded.** With fixed signals the summation magnitude is naturally in `[−140, +140]`. Per-sample `[−1, 1]` normalisation introduced singularities at destructive-interference troughs and broke the v1.07b training entirely. |
+| 10 | **Match the training distribution to inference exactly.** The C-vector mismatch wasted 75 % of training signal until we locked `chosen = sin2`. Whenever you find that inference degrades for what looks like architectural reasons, first check whether you are testing on the same distribution the model trained on. |
+
+---
+
+# 18. Final Submission Checklist (CLAUDE.md §14 mapped to this project)
+
+| CLAUDE.md item | Status |
+|---|---|
+| Documentation: PRD, Architecture, README, API documentation, Prompts Book/Log | ✅ all present in [`DOCS/`](DOCS/) and this README |
+| Code Quality: file size ≤ 150 lines, properly commented, consistent styling | ✅ verified by `wc -l` + `ruff check` |
+| Security: no secrets in code, `.env-example` provided, `.gitignore` configured | ✅ checked into git |
+| Testing: ≥ 85 % coverage, error handling robust, edge cases tested | ✅ **94.55 %** coverage, 166 tests, all pass |
+| Research & Analysis: sensitivity analysis, exploratory parameters, hi-res visualisations | ✅ `notebooks/analysis.ipynb` + this report |
+| Cost Analysis | ⚠️ N/A — app uses no external APIs at runtime |
+| Extensibility: hooks, API-first design | ✅ SDK-first; UI is a thin consumer |
+| Git: clean history, branches used, attribution | ✅ commit log shows phased commits with descriptive messages; project is `Sharbel` branch off `main` |
+
+**The project meets every applicable CLAUDE.md requirement at the time of submission.**
