@@ -1,12 +1,17 @@
 # Fourier Frequency App — Project Description
 
-> **⚠️ Design Update (v1.05)** — This document is the original design proposal. The current Identification Mode is **regression of the chosen channel's 10 coordinates** from a **10-sample window** (= 0.5 s at the identification-mode sampling rate of 20 Hz). Three algorithms run side-by-side on every Identify click:
+> **⚠️ Design Update (v1.07)** — This document is the **original design proposal** and is kept for historical context only. The current implementation has evolved through multiple revisions; the canonical specification now lives in [`README.md`](../README.md) (root) and [`PRD.md`](PRD.md). Major divergences from this document:
 >
-> - **Fourier projection** — deterministic least-squares baseline that solves the 4-component decomposition exactly given the known channel frequencies.
-> - **`BookRNNRegressor`** — manual book-faithful Elman RNN (no `nn.RNN`); per-step input is `[sample_t, C_0..C_3]`; output is 10 real-valued coordinates.
-> - **`BookLSTMRegressor`** — manual book-faithful LSTM (no `nn.LSTM`); same input format; same 10-d output.
+> | Topic | Original (this doc) | Current (v1.07) |
+> |---|---|---|
+> | ML task | RNN/LSTM **classifiers** (which channel?) | RNN, LSTM, **and FC regressors** (recover the 10 coordinates of `sin2`) |
+> | Window | 1 s × 50 samples at 50 Hz | **10 ms × 10 samples at 1000 Hz** |
+> | Noise model | Single σ Gaussian on output | **Parametric α / β jitter on (A, φ)** with per-sample ε ~ U(−1, +1) |
+> | Charts | Overlay + Σ summation (2 charts) | Noisy overlay + **Pure overlay** + Σ (3 charts) |
+> | Fourier baseline | Deterministic least-squares projection | **Removed** — only the three NN regressors run on Identify |
+> | Reset button | Present | Removed |
 >
-> The original Project Description's ML-classification design (RNN/LSTM as classifiers, 1-second / 50-point windows, side-by-side class predictions) is **superseded**. See `DOCS/PRD.md` (FR-06, FR-07, FR-10, FR-11), `DOCS/PRD_RNN.md`, `DOCS/PRD_LSTM.md`, and ADR-07 / ADR-09 / ADR-10 in `DOCS/PLAN.md`. The original Project Description sections below are kept for historical reference only.
+> See [`PRD.md`](PRD.md) (FR-06, FR-07, FR-09, FR-10, FR-11, FR-12), [`PRD_RNN.md`](PRD_RNN.md), [`PRD_LSTM.md`](PRD_LSTM.md), [`PRD_FC.md`](PRD_FC.md), and ADRs 7–10 in [`PLAN.md`](PLAN.md) for the current spec. The sections below describe the v1.00 vision and are retained only to show how the project's intent evolved.
 
 ## 1. Executive Summary
 

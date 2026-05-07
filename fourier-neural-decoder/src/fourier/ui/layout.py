@@ -14,11 +14,11 @@ from fourier.ui.layout_id_mode import (
 
 
 def make_slider(sid: str, label: str, min_v: float, max_v: float, step: float, default: float,
-                unit: str = "") -> html.Div:
+                unit: str = "", updatemode: str = "drag") -> html.Div:
     val_text = f"{default} {unit}".strip() if unit else str(default)
     return html.Div([
         html.Label(label, style={"fontSize": "0.75rem", "color": "#64748b"}),
-        dcc.Slider(id=sid, min=min_v, max=max_v, step=step, value=default, marks=None, updatemode="drag"),
+        dcc.Slider(id=sid, min=min_v, max=max_v, step=step, value=default, marks=None, updatemode=updatemode),
         html.Div(id=f"{sid}-val", children=val_text,
                  style={"fontSize": "0.72rem", "color": "#1e293b", "fontWeight": "600",
                         "marginTop": "-2px", "paddingLeft": "2px"}),
@@ -49,8 +49,10 @@ def _build_wave_panel(i: int) -> html.Div:
                 html.Div(id=f"vector-{i}"),
             ]),
             html.Div(id=f"noise-controls-{i}", children=[
-                make_slider(f"alpha-{i}", "α — Amp noise (%)", 0, 100, 1, d.get("alpha", 0), "%"),
-                make_slider(f"beta-{i}", "β — Phase noise (%)", 0, 100, 1, d.get("beta", 0), "%"),
+                make_slider(f"alpha-{i}", "α — Amp noise (%)", 0, 100, 1, d.get("alpha", 0), "%",
+                            updatemode="mouseup"),
+                make_slider(f"beta-{i}", "β — Phase noise (%)", 0, 100, 1, d.get("beta", 0), "%",
+                            updatemode="mouseup"),
             ]),
         ]),
     ], style={"padding": "8px", "marginBottom": "4px", "background": "rgba(238,242,255,0.3)", "borderRadius": "6px"})
@@ -85,7 +87,14 @@ def _build_main_area() -> html.Main:
         _build_window_selector(),
         build_extract_selector(),
         html.Div(
-            html.Button("Identify", id="identify-btn", style={"marginBottom": "8px"}),
+            html.Button("Identify", id="identify-btn", style={
+                "marginBottom": "8px", "padding": "12px 28px",
+                "background": "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%)",
+                "color": "#fff", "border": "none", "borderRadius": "10px",
+                "cursor": "pointer", "fontWeight": "700", "fontSize": "0.95rem",
+                "letterSpacing": "0.04em", "textTransform": "uppercase",
+                "boxShadow": "0 4px 16px rgba(139,92,246,0.45)",
+            }),
             id="identify-btn-container",
             style={"display": "none"},
         ),
@@ -101,7 +110,6 @@ def _build_main_area() -> html.Main:
 def _build_header() -> html.Header:
     return html.Header([
         html.H1("Fourier Synthesis", style={"margin": "0", "fontSize": "1.2rem"}),
-        html.Button("Reset", id="reset-btn"),
     ], style={"display": "flex", "justifyContent": "space-between", "alignItems": "center",
               "padding": "8px 12px", "background": "#1e293b", "color": "#fff",
               "position": "sticky", "top": "0", "zIndex": "100"})

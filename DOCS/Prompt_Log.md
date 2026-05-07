@@ -2,6 +2,8 @@
 **Version:** 1.00 | **Project:** Fourier Frequency App (Neural Signal Decoder)
 
 This document is the mandatory "Book of Prompts" required by INSTRUCTIONS.md.
+
+> **Note (v1.07b):** `INSTRUCTIONS.md` (originally inside `DOCS/`) was renamed to **`CLAUDE.md`** at the project root so Claude Code auto-loads it on every session. Every reference to `INSTRUCTIONS.md` below is historical — the same content now lives in `CLAUDE.md`.
 Every major AI-generated component must have an entry here recording the context, the prompt used, and any iterative refinements made before the output was accepted.
 
 ---
@@ -1285,6 +1287,27 @@ The user noted that the lecturer's reference design specifies **1000 samples per
 - `services/train_rnn.py::_generate_dataset`: random `n_start ~ Uniform{0, 10000−10}` per example; `t_grid = (n_start + np.arange(10)) / 1000`.
 - Tests: updated `test_callbacks_identify` (full traces at 1 kHz) and `test_callbacks_client` (rect-width assertion now 0.01).
 - Retrained all 3 models. MAE rose to ≈ 1.2 (raw amplitude units) — inherent to a 10 ms window of a 0.5 Hz signal.
+
+---
+
+### [ENTRY-024] — Bug: Per-Sample Normalization Caused Predictions to Collapse to Zero (v1.07b)
+
+#### Context
+After tightening the training distribution to fixed `ID_MODE_SIGNALS` (matching identification mode exactly) and adding the parametric α/β noise model, the user ran an Identify in the UI and pasted the result table. All three models output values near zero while the ground-truth chosen channel sat at ≈ −39. Reference screenshot: `DOCS/images/resultsWithHighError+UI.png`.
+
+#### User Prompt (Verbatim)
+> "here are the results i get: ... RNN MAE = 39.37 LSTM MAE = 39.10 FC MAE = 39.32"
+
+#### Diagnosis
+Three architectures (RNN H=64, LSTM H=64, FC H=64) cannot independently fail in the same way unless they're all predicting the dataset mean. The training pipeline normalised both the input window and the target by `max(|summed|)` — for fixed signals, this scale collapses to near-zero in destructive-interference troughs while the chosen channel can still sit near its peak amplitude, blowing up the normalised target. Gradient descent's best response is a constant-zero predictor.
+
+#### Fix
+- Removed per-sample normalisation from `_generate_dataset`.
+- Removed the matching normalize/denormalize step from `process()` in all three regressors.
+- Retrained.
+
+#### Lesson Recorded in REPORT.md
+For bounded fixed-domain regression, leaving the data in its natural units (here: raw amplitude in [−140, +140]) works better than the textbook `[−1, 1]` normalisation, because the latter introduces singularities at destructive-interference troughs.
 
 ---
 

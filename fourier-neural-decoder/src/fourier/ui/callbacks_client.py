@@ -49,15 +49,15 @@ function(activeChannels, freq0,freq1,freq2,freq3, amp0,amp1,amp2,amp3,
             const yDisc = tDisc.map(t => sampleAt(t, A, f, ph, a_i, b_i));
             const yDiscPure = tDisc.map(t => A * Math.sin(PI2 * f * t + ph));
             const markerSize = idMode ? 1.5 : 5;
-            overlayTraces.push({x: tDisc, y: yDisc, mode: 'markers', name: names[i],
+            overlayTraces.push({type: 'scattergl', x: tDisc, y: yDisc, mode: 'markers', name: names[i],
                 marker: {color: colors[i], size: markerSize}, showlegend: true});
-            pureTraces.push({x: tDisc, y: yDiscPure, mode: 'markers', name: names[i],
+            pureTraces.push({type: 'scattergl', x: tDisc, y: yDiscPure, mode: 'markers', name: names[i],
                 marker: {color: colors[i], size: markerSize}, showlegend: true});
         } else {
             const yPure = tCont.map(t => A * Math.sin(PI2 * f * t + ph));
-            overlayTraces.push({x: tCont, y: yCont, mode: 'lines', name: names[i],
+            overlayTraces.push({type: 'scattergl', x: tCont, y: yCont, mode: 'lines', name: names[i],
                 line: {color: colors[i]}, showlegend: true});
-            pureTraces.push({x: tCont, y: yPure, mode: 'lines', name: names[i],
+            pureTraces.push({type: 'scattergl', x: tCont, y: yPure, mode: 'lines', name: names[i],
                 line: {color: colors[i]}, showlegend: true});
         }
     }
@@ -79,10 +79,10 @@ function(activeChannels, freq0,freq1,freq2,freq3, amp0,amp1,amp2,amp3,
             }
             return v;
         });
-        sumTrace = {x: tDisc, y: yDisc, mode: 'markers', name: 'Σ',
+        sumTrace = {type: 'scattergl', x: tDisc, y: yDisc, mode: 'markers', name: 'Σ',
             marker: {color: '#ffffff', size: 1.5}, showlegend: false};
     } else {
-        sumTrace = {x: tCont, y: sumY, mode: 'lines', name: 'Σ',
+        sumTrace = {type: 'scattergl', x: tCont, y: sumY, mode: 'lines', name: 'Σ',
             line: {color: '#ffffff'}, showlegend: false};
     }
 
