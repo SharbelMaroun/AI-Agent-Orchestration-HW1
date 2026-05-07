@@ -1311,4 +1311,192 @@ For bounded fixed-domain regression, leaving the data in its natural units (here
 
 ---
 
+### [ENTRY-025] — Removed Fourier-Projection Baseline From Result Panel
+
+#### Context
+The result panel originally showed four reconstruction columns: Fourier (deterministic least-squares projection), RNN, LSTM, FC. The user decided the Fourier column wasn't relevant to the assignment's neural-network comparison and asked us to drop it.
+
+#### User Prompt (Verbatim)
+> "remove the 'fourier' result from the table that we get after clicking identify, and delete the calculations in the code about this method"
+
+#### Implementation Summary
+- Deleted `_project_at_frequency` and `_extract_10_points` from `callbacks_identify.py`; replaced with a slimmer `_window_and_truth()` that just slices the noisy summation and computes the ground-truth pure channel.
+- `callbacks_result.py`: removed the "Fourier" column and the old `err(F)` (Fourier-vs-real) error column from `_build_extraction_panel`. Header line now reads "RNN vs. LSTM vs. FC regressor".
+- Updated 6 obsolete tests; replaced with `_window_and_truth` tests.
+- `callbacks_identify.py` shrank from 146 → 94 lines; `callbacks_result.py` from 77 → 69 lines.
+
+---
+
+### [ENTRY-026] — Three Per-Method Error Columns (`err(R) / err(L) / err(F)`)
+
+#### Context
+After removing the Fourier baseline, the user wanted per-method error columns showing `prediction − truth` for each of the three networks at each sample index.
+
+#### User Prompt (Verbatim)
+> "i also need 3 error column, one for rnn one for lstm and one for fc"
+
+#### Implementation Summary
+- Added `_err_cell(pred, truth)` helper in `callbacks_result.py` that renders `+x.xx` formatted cells, green if `|err| ≤ 1`, red otherwise.
+- Result table now has 8 columns: `n | RNN | LSTM | FC | real | err(R) | err(L) | err(F)`.
+- File still ≤ 150 lines (84 lines).
+
+---
+
+### [ENTRY-027] — Per-Epoch Logging (MSE / MAE / acc)
+
+#### Context
+Training was opaque — no per-epoch metrics, just a final `DONE` line. The user asked for visibility into MSE and accuracy during training, and for instructions on how to run training from the terminal.
+
+#### User Prompt (Verbatim)
+> "when training, i want you to log the mse and the acc. and please tell me how to train using terminal?"
+
+#### Implementation Summary
+- Added `_epoch_metrics(model, x, c, y)` helper in `_train_loop.py` computing MSE, MAE, and `acc = mean(|err| ≤ ACC_TOL)` with `ACC_TOL = 1.0`.
+- `fit()` now logs train + test metrics every `LOG_EVERY = 5` epochs (plus epoch 1 and the final epoch) via the standard `logging` module per CLAUDE.md §9.
+- `evaluate()` returns a richer dict (`test_mse`, `test_mae`, `test_acc`, `test_rmse`).
+- A "DONE" summary line is logged after evaluation.
+
+---
+
+### [ENTRY-028] — Terminal CLI: `train_all` With `--clean` Flag
+
+#### Context
+After ENTRY-027, we needed a single terminal command that trains all three models back-to-back with the new per-epoch logging. The user later asked for a "no-noise" training mode for comparison.
+
+#### User Prompts (Verbatim)
+> "when training, i want you to log the mse and the acc. and please tell me how to train using terminal?"
+>
+> "can we make also a set of training without noise?"
+
+#### Implementation Summary
+- Added `src/fourier/services/train_all.py` (new file, 67 lines).
+- `python -m fourier.services.train_all` trains all three models back-to-back.
+- `--clean` flag forces `alpha_train_max = beta_train_max = 0` and saves to `weights/{model}_regressor_clean.pt` so noisy weights are never overwritten.
+- Subset selection: `python -m fourier.services.train_all rnn fc` trains only the listed models.
+- Excluded from coverage (one-shot driver, not unit-tested).
+
+---
+
+### [ENTRY-029] — Performance: `scattergl` + `updatemode="mouseup"`
+
+#### Context
+After bumping ID-mode sample rate to 1 kHz (3 charts × ~10 K dots = 30 K SVG circles), the app became visibly laggy. Dragging α/β sliders or scrolling the page froze the browser.
+
+#### User Prompts (Verbatim)
+> "when i enter the identification mode, so the app is being too much slow and lags too much. maybe because of the 1000 samples per second? when i change the noise in this mode, so it lags. how can we solve that?"
+>
+> "the lecturer wants 1000hz. its better now with the slider, but i still lags when i scroll down in the graphs frames. what do you reccommend?"
+
+#### Implementation Summary
+- Added `type: 'scattergl'` to every Plotly trace in `callbacks_client.py`. Plotly draws to a single `<canvas>` per chart instead of thousands of SVG `<circle>` nodes — reduces DOM-layout cost ~10×.
+- Switched the 8 α / β noise sliders to `updatemode="mouseup"` via a new `updatemode` parameter on `make_slider`. Frequency / amplitude / phase / window-start sliders kept live `"drag"` updates because they are cheap.
+
+---
+
+### [ENTRY-030] — Three-Frame UI: Added Pure Overlay
+
+#### Context
+The user wanted a third chart showing the pure (clean) versions of the channels so the noise sliders' effect would be obvious — moving them changes the noisy chart while the pure chart stays still.
+
+#### User Prompts (Verbatim)
+> "now i want you to add frames so i will see: 1 graph for summation (we have this), and one frame for all the signals with the noise (we have this), and one frame for all the pure functions, so if we add noise, the functions into this frame will not be affected (will still displayed pure)"
+>
+> "amazing, but the pure graph should also be changed to dots mode, also when entering identification mode and dots mode"
+
+#### Implementation Summary
+- Added a third `dcc.Graph(id="pure-chart")` between overlay and Σ in `layout.py` (heights 260 / 240 / 260).
+- Clientside JS now builds `pureTraces` (per-channel `A·sin(2πft+φ)` with no ε) alongside `overlayTraces`. Mode (line vs dots) and sampling rate match the noisy overlay so both charts switch to 1 kHz markers when entering identification mode.
+- Clientside callback now returns `[overlayFig, pureFig, sumFig]` (three outputs).
+- Test updated for the new output count.
+
+---
+
+### [ENTRY-031] — Per-Sample ε (Visible Scatter Around the Sine)
+
+#### Context
+The user noticed that with one ε per channel per evaluation, the noise sliders shifted the whole sine to a different `(A_eff, φ_eff)` instead of producing dots scattered around the original sine. The lecturer's reference screenshots showed dots around the line. The correct interpretation is to draw ε **per sample**, not per channel.
+
+#### User Prompts (Verbatim)
+> "are you sure about the noise method? becuase when i add noise i see that the sin function is changing, but the noise should not change the function, it should add noise (like dots) around it. so maybe the formula (with alpha and beta) that i gave you before, that the lecturer gave us, is for adding these dots? and not putting it instead of the function?"
+>
+> "yes please, fix"
+
+#### Implementation Summary
+- `signal_generator._evaluate(t)`: now draws `eps = rng.uniform(-1, 1, size=t.shape)` (one ε per sample) and broadcasts into the sin formula.
+- Clientside JS `sampleAt(t, A, f, ph, alpha, beta)`: fresh `Math.random()` per `t` mapped value.
+- `_generate_dataset`: `eps_k = rng.uniform(-1, 1, size=EXTRACT_POINTS)` per channel per example — 10 independent draws inside each window.
+- Net effect: clean line of underlying sine is preserved; rendered dots scatter around it visibly. Frequency and phase information remain extractable in expectation (zero-mean noise).
+
+---
+
+### [ENTRY-032] — Locked `chosen = sin2` in Training (C-Vector Mismatch Fix)
+
+#### Context
+After running the app post-bug-A fix, errors were still ±5 – 15. A diagnostic search revealed a training-vs-inference C-vector mismatch: training drew `chosen` uniformly across the 4 channels, but inference always used `C = [0, 1, 0, 0]`. Only ~25 % of training examples (1 500 of 6 000) exercised the deployed task.
+
+#### User Prompts (Verbatim)
+> "the results are very bad, please check in the internet for ways to enhance the implementation. maybe we are making something wrong? our networks are trying to predict the pure 2nd sin function context window right?"
+>
+> "if you fix 1, so the implementation will still match the files: concepts/LSTM-book.pdf and concepts/RNN-BOOK.pdf?"
+>
+> "ok fix that"
+
+#### Implementation Summary
+- Web-searched best practices for short-window sinusoid regression (sources cited inline in conversation).
+- Confirmed the C-vector mismatch is a real bug, not an architectural choice.
+- Verified the fix preserves book-faithful constraints: only the data distribution changes; per-step input format `[sample_t, C_0..C_3]`, gate matrices, weight sharing, and `tanh` / `σ` activations all unchanged.
+- One-line code change in `_generate_dataset`: `chosen = int(rng.integers(0, n_classes))` → `chosen = 1`.
+- Retrained both noisy and clean weight sets.
+
+#### Result
+- Per-row error in app dropped from ±30 – 45 (Bug A era) to ±5 – 15 (post-fix). Documented with `betterResults.png`.
+- Quadrupled the relevant training signal for the actual task; LSTM clean MAE = 5.55 (best of three).
+
+---
+
+### [ENTRY-033] — Coloured Identify Button + UI Polish
+
+#### Context
+The plain Identify button blended into the page; the user asked for it to be colour-styled to match the prominent Enter / Exit Identification buttons.
+
+#### User Prompt (Verbatim)
+> "(1) make the identify button with color."
+
+#### Implementation Summary
+- Updated `layout.py`: Identify button now uses the same indigo → purple → pink gradient as Enter Identification Mode, with rounded corners, uppercase letter-spacing, and a soft purple shadow.
+
+---
+
+### [ENTRY-034] — Documentation Sweep: README v1.07c, REPORT Updates, Image References
+
+#### Context
+After all v1.07b → v1.07c code changes settled, the documentation needed to catch up: stale numbers in PLAN.md and REPORT.md (1.23 / 11.49 era), missing references for newly-added screenshots, the §11 / §12 / §13 / §14 analytical sections, the §15 implementation-choices analysis, and a we-voice rewrite of the analytical paragraphs.
+
+#### User Prompts (Verbatim, summarised)
+> "we should take pictures to show that our analysis is correct, which screenshots should i take exactly to show that?"
+>
+> "i added the images: curvatureRNNBetter.png that shows when i put the contexgt window on the curvature, so RNN is better than LSTM. also i added RNNNewTrainingResults.png and LSTMNewTrainingResults.png and FCNewTrainingResults.png, so please add all these images referneces to the readme.md file"
+>
+> "i added weakCurvatureLSTMBetter.png image to show that when the curvature is weak, so the LSTM is better, we can see the FC is like RNN here. explain the resons please in the readme.md and add the images references"
+>
+> "i added the video app-overview.mp4 to show the whole app behaviour, can you please add reference to it in the readme.md?"
+>
+> "(1) In readme add analysis and comparison between rnn and lstm and fc. (2) what is the Relation between noise and precision? Write in readme. (3) When should we use fully connected? Add the answer in readme file. (4) does the lecturer right?"
+>
+> "ok so write in the readme.md that we do this only for the FC, and explain why we didnt do for the RNN and LSTM"
+>
+> "can you pass over the whole readme.md file to verify its valuble and if it includes every thing needed? and if you can to add more explanations about the analysis between rnn and lstm and fc? and talk about how the implementation can make the results be better for one of them in different cases. also make the readme.md file written in the verb of We"
+
+#### Implementation Summary
+- **PLAN.md ADR-006 / ADR-008:** updated stale v1.06 numbers (FC 43.76, etc.) and v1.07 first-pass MAE ≈ 1.2 with the current v1.07c table (LSTM 5.55 / RNN 8.36 / FC 10.87) and pointers to README §11.
+- **REPORT.md:** kept the v1.07 (1.23 / 1.19 / 1.23) and v1.07b (11.49 / 10.73 / 11.70) tables marked as historical; added a current v1.07c block with two tables (clean and noisy) plus interpretation paragraph.
+- **README §11–§14:** new analytical sections covering RNN-vs-LSTM-vs-FC architectural comparison, noise ↔ precision regimes, when to use FC, and a verdict on the lecturer's frequency-bias claim with a curvature counter-example pair (`curvatureRNNBetter.png` + `weakCurvatureLSTMBetter.png`).
+- **README §15:** new section "Implementation Choices That Could Change Which Model Wins" — eight knobs (window length, n_samples, hidden size, training-noise range, output head, normalisation, locked-chosen, sin activation) with per-knob predictions of which model would benefit.
+- **README §11 sub-section "Why only the FC sees the input as a flat 14-d vector":** explicit explanation that only the FC takes a flat 14-d vector; the RNN/LSTM each receive 10 5-d vectors (per-step `[sample_t, C_0..C_3]`) per the book-faithful spec — flattening would break the comparison.
+- **README §11 sub-section "Reading the numbers":** explains why in-app MAE (≈ 4) is lower than training-test MAE (≈ 12) — different test distributions, different data, single window vs 1 200-window mean.
+- **Image / video references wired:** `app-overview.mp4`, `RNN/LSTM/FCNewTrainingResults.png`, `curvatureRNNBetter.png`, `weakCurvatureLSTMBetter.png`, `betterResults.png`, `badResults.png`, `resultsWithHighError+UI.png`, `fig1_four_classes.png` — all referenced from `DOCS/images/` (root-relative) so they survive the `fourier-neural-decoder/` → `DOCS/` boundary.
+- **We-voice rewrite:** §11 / §14 analytical paragraphs converted to first-person plural ("we observe / measure / find / trained") where natural; install / config / training-CLI sections kept in imperative voice (the right register for runnable instructions).
+
+---
+
 *Add new entries below as development progresses.*
