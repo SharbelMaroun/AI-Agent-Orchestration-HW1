@@ -1,35 +1,77 @@
 from __future__ import annotations
 
-from typing import Any
-
 from dash import html
 
-from fourier.shared.constants import COLORS, WAVE_NAMES
-from fourier.shared.types import ClassifierResult
+from fourier.shared.constants import EXTRACT_POINTS, WAVE_NAMES
 
 
-def _build_single_result_panel(result: ClassifierResult, label: str = "") -> html.Div:
-    bars = [
-        html.Div([
-            html.Span(WAVE_NAMES[i], style={"width": "140px", "display": "inline-block", "fontSize": "0.75rem"}),
-            html.Div(style={"display": "inline-block", "height": "10px",
-                            "width": f"{result['probabilities'][i] * 200:.0f}px",
-                            "background": COLORS[i], "verticalAlign": "middle"}),
-            html.Span(f" {result['probabilities'][i]:.1%}", style={"fontSize": "0.7rem"}),
-        ]) for i in range(4)
+def _build_extraction_panel(
+    result: list[float], real: list[float], error: list[float],
+    wave_name: str, wave_color: str,
+    rnn_result: dict | None = None,
+    lstm_result: dict | None = None,
+    fc_result: dict | None = None,
+) -> html.Div:
+    rnn_coords = rnn_result["coordinates"] if rnn_result else [None] * EXTRACT_POINTS
+    lstm_coords = lstm_result["coordinates"] if lstm_result else [None] * EXTRACT_POINTS
+    fc_coords = fc_result["coordinates"] if fc_result else [None] * EXTRACT_POINTS
+
+    rows = []
+    for k in range(EXTRACT_POINTS):
+        err_v = error[k]
+        rows.append(html.Tr([
+            html.Td(f"[{k}]", style={"fontFamily": "monospace", "fontSize": "0.7rem", "color": "#94a3b8",
+                                     "paddingRight": "6px"}),
+            html.Td(f"{result[k]:8.2f}", style={"fontFamily": "monospace", "color": "#fbbf24",
+                                                 "fontSize": "0.7rem", "paddingRight": "8px"}),
+            html.Td(f"{rnn_coords[k]:8.2f}" if rnn_coords[k] is not None else "—",
+                    style={"fontFamily": "monospace", "color": "#a78bfa",
+                           "fontSize": "0.7rem", "paddingRight": "8px"}),
+            html.Td(f"{lstm_coords[k]:8.2f}" if lstm_coords[k] is not None else "—",
+                    style={"fontFamily": "monospace", "color": "#34d399",
+                           "fontSize": "0.7rem", "paddingRight": "8px"}),
+            html.Td(f"{fc_coords[k]:8.2f}" if fc_coords[k] is not None else "—",
+                    style={"fontFamily": "monospace", "color": "#f472b6",
+                           "fontSize": "0.7rem", "paddingRight": "8px"}),
+            html.Td(f"{real[k]:8.2f}", style={"fontFamily": "monospace", "color": wave_color,
+                                               "fontSize": "0.7rem", "paddingRight": "8px"}),
+            html.Td(f"{err_v:+.2f}", style={"fontFamily": "monospace", "fontSize": "0.7rem",
+                                             "color": "#ef4444" if abs(err_v) > 1 else "#22c55e"}),
+        ]))
+    table = html.Table([
+        html.Thead(html.Tr([
+            html.Th("n", style={"fontSize": "0.65rem", "color": "#64748b", "paddingRight": "6px"}),
+            html.Th("Fourier", style={"fontSize": "0.65rem", "color": "#fbbf24", "paddingRight": "8px"}),
+            html.Th("RNN", style={"fontSize": "0.65rem", "color": "#a78bfa", "paddingRight": "8px"}),
+            html.Th("LSTM", style={"fontSize": "0.65rem", "color": "#34d399", "paddingRight": "8px"}),
+            html.Th("FC", style={"fontSize": "0.65rem", "color": "#f472b6", "paddingRight": "8px"}),
+            html.Th("real", style={"fontSize": "0.65rem", "color": wave_color, "paddingRight": "8px"}),
+            html.Th("err(F)", style={"fontSize": "0.65rem", "color": "#94a3b8"}),
+        ])),
+        html.Tbody(rows),
+    ], style={"borderCollapse": "collapse"})
+
+    summary_bits = []
+    if rnn_result is not None:
+        summary_bits.append(html.Span(f"RNN MAE = {rnn_result.get('mae', 0.0):.2f}",
+                                       style={"color": "#a78bfa", "marginRight": "12px"}))
+    if lstm_result is not None:
+        summary_bits.append(html.Span(f"LSTM MAE = {lstm_result.get('mae', 0.0):.2f}",
+                                       style={"color": "#34d399", "marginRight": "12px"}))
+    if fc_result is not None:
+        summary_bits.append(html.Span(f"FC MAE = {fc_result.get('mae', 0.0):.2f}",
+                                       style={"color": "#f472b6"}))
+    summary = html.Div(summary_bits, style={"fontFamily": "monospace", "fontSize": "0.7rem",
+                                              "marginTop": "6px"}) if summary_bits else None
+
+    children = [
+        html.Strong(f"Extracting: {wave_name}", style={"color": wave_color}),
+        html.P(f"C = {[1 if w == wave_name else 0 for w in WAVE_NAMES]}  |  "
+               f"Fourier vs. RNN vs. LSTM vs. FC regressor",
+               style={"fontSize": "0.7rem", "color": "#94a3b8", "margin": "2px 0 6px"}),
+        table,
     ]
-    return html.Div([
-        html.Strong(label or "Result"),
-        html.P(f"Predicted: {result['class_name']} ({result['confidence']:.1%})"),
-        *bars,
-    ], style={"padding": "8px", "background": "#f8fafc", "borderRadius": "6px", "marginBottom": "6px"})
-
-
-def _build_diff_summary(diff: dict[str, Any]) -> html.Div:
-    color = "#16a34a" if diff["agreement"] else "#dc2626"
-    return html.Div([
-        html.Strong("Agreement: "),
-        html.Span("YES" if diff["agreement"] else "NO", style={"color": color, "fontWeight": "bold"}),
-        html.P(f"Confidence delta: {diff['confidence_delta']:.4f}"),
-        html.P(f"Runner-up: {diff['runner_up_diff']}"),
-    ], style={"padding": "8px", "background": "#f1f5f9", "borderRadius": "6px"})
+    if summary is not None:
+        children.append(summary)
+    return html.Div(children, style={"padding": "8px", "background": "#0f172a", "borderRadius": "6px",
+                                       "border": f"1px solid {wave_color}40"})

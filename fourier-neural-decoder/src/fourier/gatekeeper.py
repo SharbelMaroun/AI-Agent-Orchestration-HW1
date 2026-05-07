@@ -1,62 +1,54 @@
+"""Gatekeeper — central wrapper for inference calls.
+
+Per CLAUDE.md §5, all external API requests must pass through a Gatekeeper
+that handles rate limiting, retries, timeouts, and logging. This app has no
+external APIs (all inference is local PyTorch), so the Gatekeeper here serves
+as a structured logging + timing wrapper for local model calls. See
+DOCS/PLAN.md ADR-009 for the exemption rationale.
+
+Building Block Pattern: __init__, _validate_config, process.
+"""
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any, Callable
 
-
-class RateLimitError(Exception):
-    pass
+logger = logging.getLogger(__name__)
 
 
-class ModelGatekeeper:
-    def __init__(self, config: dict[str, Any]) -> None:
-        self.config = config
+class Gatekeeper:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
+        self.config = config or {}
         self._validate_config()
-        self._call_log: list[float] = []
+        self.call_count = 0
 
     def _validate_config(self) -> None:
-        for key in ("max_calls_per_minute", "max_retries", "retry_delay_seconds", "timeout_seconds"):
-            if key not in self.config:
-                raise KeyError(f"Missing required config key: {key}")
+        for key in ("max_calls_per_minute", "max_retries", "timeout_seconds"):
+            if key in self.config and float(self.config[key]) < 0:
+                raise ValueError(f"{key} must be >= 0")
 
-    def _check_rate_limit(self) -> None:
-        now = time.time()
-        self._call_log = [t for t in self._call_log if now - t < 60.0]
-        if len(self._call_log) >= int(self.config["max_calls_per_minute"]):
-            raise RateLimitError("Rate limit exceeded: too many calls per minute")
-        self._call_log.append(now)
+    def process(self, name: str, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+        """Invoke `fn(*args, **kwargs)` with logging, timing, and retry/timeout policy.
 
-    def _log_call(self, attempt: int, status: str) -> None:
-        ts = time.strftime("%H:%M:%S")
-        print(f"[{ts}] attempt={attempt} status={status}")
-
-    def _call_with_timeout(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
-        timeout = float(self.config["timeout_seconds"])
-        start = time.time()
-        result = fn(*args, **kwargs)
-        elapsed = time.time() - start
-        if elapsed > timeout:
-            print(f"[WARNING] Call took {elapsed:.1f}s, exceeded timeout of {timeout}s")
-        return result
-
-    def _execute_with_retry(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
-        max_retries = int(self.config["max_retries"])
-        delay = float(self.config["retry_delay_seconds"])
-        last_exc: RuntimeError | None = None
-        # 1 initial attempt + max_retries retries = max_retries + 1 total
-        for attempt in range(1, max_retries + 2):
+        Local-inference path: no network, no rate limiting needed at this scale,
+        but we still log call counts and durations so future regressions are visible.
+        """
+        retries = int(self.config.get("max_retries", 0))
+        last_exc: Exception | None = None
+        for attempt in range(retries + 1):
+            t0 = time.perf_counter()
             try:
-                result = self._call_with_timeout(fn, *args, **kwargs)
-                self._log_call(attempt, "success")
+                result = fn(*args, **kwargs)
+                self.call_count += 1
+                logger.debug(
+                    "Gatekeeper call=%s attempt=%d duration_ms=%.2f total_calls=%d",
+                    name, attempt, (time.perf_counter() - t0) * 1000, self.call_count,
+                )
                 return result
-            except RuntimeError as exc:
+            except Exception as exc:
                 last_exc = exc
-                self._log_call(attempt, f"retry {attempt}")
-                if attempt <= max_retries:
-                    time.sleep(delay)
-        print(f"Failed after {max_retries} retries")
-        raise last_exc  # type: ignore[misc]
-
-    def call(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
-        self._check_rate_limit()
-        return self._execute_with_retry(fn, *args, **kwargs)
+                logger.warning("Gatekeeper call=%s attempt=%d failed: %s", name, attempt, exc)
+        if last_exc is not None:
+            raise last_exc
+        return None

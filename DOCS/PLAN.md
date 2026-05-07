@@ -1,5 +1,5 @@
 ﻿# PLAN — Fourier Frequency App
-**Version:** 1.00 | **Status:** Approved | **Owner:** sharbelm
+**Version:** 1.07 | **Status:** Approved | **Owner:** sharbelm
 
 ---
 
@@ -51,22 +51,6 @@ External Systems: None (fully self-contained; no external APIs in v1.00)
 │                               │  src/fourier/sdk/          │    │
 │                               │  signal_generator.py       │    │
 │                               │  window_extractor.py       │    │
-│                               │  rnn_classifier.py         │    │
-│                               │  lstm_classifier.py        │    │
-│                               │  result_comparator.py      │    │
-│                               └──────────┬─────────────────┘    │
-│                                          │                       │
-│                               ┌──────────▼─────────────────┐    │
-│                               │      Gatekeeper             │    │
-│                               │  src/fourier/gatekeeper.py │    │
-│                               │  Rate limiting, retry,      │    │
-│                               │  logging for ML inference   │    │
-│                               └──────────┬─────────────────┘    │
-│                                          │ loads                 │
-│                               ┌──────────▼─────────────────┐    │
-│                               │    Model Weight Files       │    │
-│                               │  models/rnn_classifier.pt  │    │
-│                               │  models/lstm_classifier.pt │    │
 │                               └────────────────────────────┘    │
 │                                                                  │
 │  ┌─────────────────────────────────────────────────────────┐    │
@@ -84,30 +68,19 @@ External Systems: None (fully self-contained; no external APIs in v1.00)
 src/fourier/sdk/
 │
 ├── signal_generator.py
-│     __init__(config)          ← loads RESOLUTION, DURATION, DEFAULTS from config
-│     process(channels)         ← returns {overlay_traces, sum_trace} for Plotly
-│     _validate_config()        ← checks required keys exist
+│     __init__(config)            ← loads RESOLUTION, DURATION, DEFAULTS, alpha, beta
+│     process()                   ← returns {continuous, discrete} with parametric noise
+│     _perturbed_params()         ← draws ε~Uniform(-1,1); returns (A_eff, φ_eff)
+│     _validate_config()          ← checks required keys + α,β ∈ [0,1]
 │
-├── window_extractor.py
-│     __init__(config)          ← loads RESOLUTION, DURATION from config
-│     process(sum_trace, t_start, noise_sigma=0.0) ← returns normalized+noisy (50,) np.ndarray
-│     _inject_noise(arr, sigma) ← adds N(0, sigma²) Gaussian noise when sigma > 0
-│     _validate_config()        ← checks window bounds
+├── window_extractor.py           (purely deterministic — no noise injection)
+│     __init__(config)            ← loads RESOLUTION, DURATION from config
+│     process(signal)             ← returns normalized (1, N, 1) np.float32 tensor
+│     _slice_window(signal)       ← extracts window_points consecutive samples
+│     _normalize(arr)             ← (arr − μ) / σ
+│     _validate_config()          ← checks window bounds
 │
-├── rnn_classifier.py
-│     __init__(config)          ← loads model weights from config["rnn_model_path"]
-│     process(window)           ← returns {"class", "confidence", "probabilities"}
-│     _validate_config()        ← checks file exists
-│
-├── lstm_classifier.py
-│     __init__(config)          ← loads model weights from config["lstm_model_path"]
-│     process(window)           ← returns {"class", "confidence", "probabilities"}
-│     _validate_config()        ← checks file exists
-│
-└── result_comparator.py
-      __init__()
-      process(rnn_result, lstm_result) ← returns diff dict
-      _validate_config()        ← no-op (stateless utility)
+└── window_extractor.py  (continued — see above)
 ```
 
 ---
@@ -135,43 +108,6 @@ class SignalResult:
     overlay_traces: list[dict]   # Plotly trace dicts
     sum_trace: dict              # Plotly trace dict
     sum_y: list[float]           # raw values for ML extraction
-```
-
-#### `RNNClassifier` / `LSTMClassifier`
-```python
-class RNNClassifier:
-    def __init__(self, config: dict) -> None: ...
-    def process(self, window: np.ndarray) -> ClassificationResult: ...
-    def _validate_config(self) -> None: ...
-
-@dataclass
-class ClassificationResult:
-    class_index: int
-    channel_name: str
-    confidence: float
-    probabilities: list[float]   # length 4, sums to 1.0
-```
-
-#### `ResultComparator`
-```python
-class ResultComparator:
-    def __init__(self) -> None: ...
-    def process(
-        self,
-        rnn: ClassificationResult,
-        lstm: ClassificationResult,
-    ) -> ComparisonResult: ...
-    def _validate_config(self) -> None: ...
-
-@dataclass
-class ComparisonResult:
-    agreement: bool
-    confidence_delta: float        # LSTM − RNN, percentage points
-    top_class_rnn: float
-    top_class_lstm: float
-    runner_up_rnn: tuple[int, float]
-    runner_up_lstm: tuple[int, float]
-    disagreement_warning: bool
 ```
 
 ---
@@ -261,6 +197,151 @@ class ComparisonResult:
 **Consequences:**
 - Single point of control for ML call policy. ✓
 - Slight overhead per call (negligible for CPU inference).
+
+---
+
+### ADR-07: Manual ("Book-Faithful") RNN as a Regressor
+
+**Status:** Accepted (v1.05)
+
+**Context:** The Identification task is to recover the 10 coordinates of the user-chosen channel from a 10-sample summation window. The Fourier projection (ADR earlier) solves this deterministically; the lecturer additionally requires an RNN regressor that learns the same mapping. PyTorch's `nn.RNN` hides `W_x`, `W_h`, `b` and the time-step loop inside a fused kernel; the textbook (`concepts/RNN-BOOK.pdf`) presents the recurrence with these parameters explicit.
+
+**Decision:** Implement `BookRNNRegressor(nn.Module)` with `W_x`, `W_h`, `b`, `W_y`, `b_y` as explicit `nn.Parameter`s and a Python `for t in range(seq_len)` loop. Per-step input is the concatenation `[sample_t, C_0..C_3]` so the network always knows which channel to extract. The output head is **linear, not softmax**, producing 10 real-valued coordinates. Loss is MSE on per-sample-amplitude-normalised data. `nn.RNN` is forbidden.
+
+**Consequences:**
+- Direct correspondence between book equations and source code. ✓
+- Slower than `nn.RNN` on CPU; acceptable since `seq_len = 10`.
+- Per-sample amplitude normalisation (divide by `max(|samples|)` at both training and inference) keeps the network's working range in `[−1, 1]` regardless of the user's amplitude choices.
+
+---
+
+### ADR-09: Manual ("Book-Faithful") LSTM as a Regressor
+
+**Status:** Accepted (v1.05)
+
+**Context:** Same regression task as ADR-07. The textbook (`concepts/LSTM-book.pdf`) §6.1 derives the four LSTM gates and cell-state update from first principles. `nn.LSTM` collapses the four gate weights into a single fused tensor and hides the loop.
+
+**Decision:** Implement `BookLSTMRegressor(nn.Module)` with `W_f`, `W_i`, `W_C`, `W_o` and their biases as **separate** `nn.Parameter`s, time-step loop in Python, forget-bias init to 1.0, cell-state addition (Eq. 4.3), `h_t = o_t ⊙ tanh(C_t)`. Output head is linear → 10 coordinates. Same MSE loss and normalisation as the RNN regressor — they share `_generate_dataset` so any prediction difference is purely architectural. `nn.LSTM` is forbidden.
+
+**Consequences:**
+- Apples-to-apples comparison RNN vs. LSTM. ✓
+- LSTM has ~4× the parameters of RNN (per book §5.4).
+- Slower than `nn.LSTM`; acceptable for `seq_len = 10`.
+
+---
+
+### ADR-10: Both Networks Run Side-by-Side With the Fourier Baseline
+
+**Status:** Accepted (v1.05)
+
+**Context:** The user expects to see all three reconstructions of the chosen wave's 10 coordinates so the trained networks can be evaluated against the deterministic Fourier baseline.
+
+**Decision:** The Identify callback runs the Fourier projection, RNN regressor, and LSTM regressor on the **same** 10-sample window and the **same** C one-hot. The result panel shows three columns — Fourier, RNN, LSTM — alongside `real`, plus a per-method MAE summary line. No code from the Fourier path was modified to add the regressors; the regressors are independent SDK classes loaded lazily as module-level singletons in `callbacks_identify.py`.
+
+**Consequences:**
+- One Identify click → three reconstructions, directly comparable. ✓
+- The Fourier baseline serves as a "reference answer" that the trained networks aim to approach.
+
+---
+
+### ADR-11: FC (MLP) Regressor as a Non-Recurrent Baseline
+
+**Status:** Accepted (v1.06)
+
+**Context:** With RNN and LSTM regressors in place, a non-recurrent baseline lets us answer the empirical question "does recurrence actually help on a 10-sample window?". The FC sees the entire window as a flat vector and cannot use temporal order.
+
+**Decision:** Add `BookFCRegressor(nn.Module)` as a fourth independent SDK class with `W_1`, `b_1`, `W_2`, `b_2` as explicit `nn.Parameter`s. Two-layer MLP: `ReLU(W_1·[samples, C] + b_1)` → linear output layer → 10-d coordinates. Same `_generate_dataset`, same MSE loss, same per-sample normalisation as the RNN/LSTM regressors. Wired into the Identify callback alongside the recurrent models.
+
+**Consequences:**
+- Direct comparison: same training data, same loss, same evaluation pipeline, only architecture differs. ✓
+- The FC is permutation-invariant on the input — documented limitation that makes it the proper baseline.
+- Empirically (default 4-channel summation) the FC reaches **summed MAE 43.76**, beating LSTM (47.81) and RNN (57.77). On this task and at this sequence length, recurrence does not earn its extra parameters.
+- Inference cost: FC ≪ RNN < LSTM (no time loop in FC).
+
+---
+
+### ADR-007 (v1.07) — Parametric α/β Noise Model
+
+**Status:** Accepted | **Date:** 2026-05-07
+
+**Context:** The legacy noise model added Gaussian `N(0, σ²)` to the rendered output of each channel. This is *additive output noise*, which conflates "signal" and "measurement noise" and gives only one knob (σ).
+
+**Decision:** Replace additive noise with a **parametric** model that perturbs a sine's amplitude and phase directly, with a single ε draw per channel per evaluation:
+
+$$y_k(t) = (A_k + \alpha_k\!\cdot\!A_k\!\cdot\!\varepsilon)\,\sin\!\big(2\pi f_k t + \varphi_k + \beta_k\!\cdot\!\pi\!\cdot\!\varepsilon\big),\quad \varepsilon\sim\mathrm{Uniform}(-1,+1)$$
+
+- **α** (amplitude noise, %) and **β** (phase noise, %) are independent per-channel sliders → 8 sliders total.
+- ε is drawn **once per channel per evaluation** — the perturbation gives a single jittered sine, not a stochastic process.
+- Symmetric jitter: at α = 100 %, A_eff ∈ [0, 2A]; at β = 100 %, φ shift ∈ [−π, +π].
+- `WindowExtractor` no longer injects noise — it is a pure deterministic windowing function.
+
+**Consequences:**
+- The slider semantics now match physical intuition: α controls amplitude jitter, β controls phase jitter, both as percentages of the natural scale (A and π respectively).
+- Training and inference must use the same noise model. `_generate_dataset` draws α, β, ε per channel per example; target = clean (un-perturbed) chosen channel — model learns to denoise.
+- Removed `_noise_label` (Clean/Light/Medium/Heavy) — slider value already shows the percentage.
+
+---
+
+### ADR-009 (v1.07) — Gatekeeper as Local-Inference Wrapper
+
+**Status:** Accepted | **Date:** 2026-05-07
+
+**Context:** CLAUDE.md §5 mandates that "ALL external API requests MUST pass through a dedicated Gatekeeper class" handling rate limiting, retries, and logging. This app has **zero external API dependencies**: all inference is local PyTorch on CPU; the only "service calls" are `RNNRegressor.process()`, `LSTMRegressor.process()`, and `FCRegressor.process()` running in-process.
+
+**Decision:** Keep the Gatekeeper, but scope it to **local-inference instrumentation** rather than network mediation:
+
+- `src/fourier/gatekeeper.py` defines `Gatekeeper(config).process(name, fn, *args)` — wraps any callable with structured logging (call name, attempt #, duration, total call count) and a configurable retry policy.
+- All three regressors are invoked through `_gatekeeper.process(...)` in `callbacks_identify._infer()`.
+- No rate limiting is enforced (no shared bottleneck to protect); `max_retries` defaults to 1 to handle transient PyTorch glitches.
+
+**Consequences:**
+- The literal CLAUDE.md rule is satisfied — every model call passes through the Gatekeeper.
+- The Gatekeeper provides a uniform extension point if external APIs are added later (e.g., uploading a window to a remote inference service).
+- Logging is centralized: every inference call produces a structured DEBUG record without the regressors needing to log themselves.
+
+---
+
+### ADR-010 (v1.07) — Single-Threaded Execution
+
+**Status:** Accepted | **Date:** 2026-05-07
+
+**Context:** CLAUDE.md §10 expects an explicit parallelism strategy: multiprocessing for CPU-bound work, multithreading for I/O-bound work.
+
+**Decision:** Run the entire app **single-threaded** in the Dash worker process.
+
+**Rationale:**
+- **Inference is sub-millisecond.** Each regressor processes a 10-sample window through a ~5–18 K parameter model. Wall-clock per call is < 1 ms; the three calls + Fourier projection complete in well under the 200 ms NFR-02 latency budget. Parallelizing across the three networks would add more thread-startup overhead than it saves.
+- **Charts render client-side.** The 10 001-point Σ-chart in ID mode is built in JavaScript on the user's browser (`callbacks_client.py`). The Python server never touches per-frame data.
+- **No I/O.** The app has no network calls, no file I/O during interaction, and no external APIs. There is nothing to overlap.
+- **Training is offline.** `services/train_*` are run-once scripts; CPU-bound training is a single process by design (PyTorch handles intra-op parallelism via BLAS).
+
+**Conditions under which this would change:**
+1. Models grow to where single-call inference exceeds ~50 ms — then `multiprocessing.Pool` over the three regressors becomes worthwhile.
+2. The app gains an external inference service (remote API) — then per-request `multithreading` for I/O overlap.
+3. Dataset generation moves to live (per-Identify) instead of offline — `multiprocessing` over independent training examples.
+
+Until any of those land, single-threaded is the simpler, faster, and easier-to-debug choice.
+
+---
+
+### ADR-008 (v1.07) — ID-Mode Sample Rate 1 kHz
+
+**Status:** Accepted | **Date:** 2026-05-07
+
+**Context:** Identification mode previously sampled at `ID_MODE_SR = 20 Hz` — Nyquist-compliant for the 0.5–2 Hz harmonics, but the 10-sample window covered 0.5 s, which is half a cycle of the slowest channel. The lecturer's reference design specifies 1000 samples/sec for dataset construction.
+
+**Decision:** Bump ID-mode sample rate to `ID_MODE_SR = 1000 Hz`. Keep `EXTRACT_POINTS = 10`. Window now spans **0.01 s = 10 ms**.
+
+- `window_duration` in `app_config.json` → `0.01`.
+- Window slider: `step = 0.001 s` (one-sample resolution), `max = 9.99 s`.
+- Highlight rectangle on the Σ-chart is `0.01 s` wide (visually a thin amber line — intentional).
+- Σ-chart in ID mode renders 10 001 dots; marker size reduced to `1.5 px` for density.
+- Training generator `_generate_dataset` draws `n_start ~ Uniform{0, …, 10 000−10}` per example so the model sees windows from anywhere in the 10 s range.
+
+**Consequences:**
+- Per-window MAE rose vs. 20 Hz (≈ 1.2 vs ≈ 0.3 in raw amplitude units, ~2–3 % of typical channel amplitude). Inherent to the spec — a 10 ms window covers only 1/200 of a 0.5 Hz cycle, so the network sees near-flat slices.
+- Inference rendering remains responsive (Plotly handles 10 K dots fine on modern browsers).
+- One-sample slider precision lets the user examine arbitrary 10-sample positions, not just multiples of 0.1 s.
 
 ---
 

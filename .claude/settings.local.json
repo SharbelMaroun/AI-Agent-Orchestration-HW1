@@ -15,7 +15,21 @@
       "Bash(wc -l *.py)",
       "Bash(python -c 'print\\(sum\\(1 for _ in open\\('\\\\''__TRACKED_VAR__'\\\\''\\)\\)\\)')",
       "Bash(gh pr *)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\orch fo AI agents\\\\AI-Agent-Orchestration-HW1\" -Recurse)",
+      "Bash(Select-Object FullName)",
+      "Bash(python -m pytest tests/unit/test_layout.py -v)",
+      "Bash(python -m pip install pytest -q)",
+      "Bash(python -m pip install -e . -q)",
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Bash(python -m pytest tests/unit/test_callbacks_identify.py -v)",
+      "Bash(python *)",
+      "Bash(mkdir -p /tmp)",
+      "Bash(python3 -c ' *)",
+      "Bash(rm -fv src/fourier/sdk/rnn_classifier.py src/fourier/sdk/lstm_classifier.py src/fourier/sdk/fc_classifier.py src/fourier/services/train_rnn.py src/fourier/services/train_lstm.py src/fourier/services/train_fc.py tests/unit/test_rnn_classifier.py tests/unit/test_lstm_classifier.py tests/unit/test_fc_classifier.py weights/rnn.pt weights/lstm.pt weights/fc.pt)",
+      "Bash(rmdir weights *)",
+      "Bash(tasklist)",
+      "Bash(xargs wc -l)"
     ]
   }
 }

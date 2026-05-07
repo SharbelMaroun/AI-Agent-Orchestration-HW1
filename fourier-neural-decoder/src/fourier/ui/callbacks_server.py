@@ -6,18 +6,8 @@ from typing import Any
 from dash import Input, Output, html
 
 from fourier.shared.constants import COLORS, DEFAULTS
+from fourier.ui.callbacks_id_mode import register_id_mode_callbacks
 from fourier.ui.callbacks_identify import register_identify_callback
-from fourier.ui.callbacks_result import _build_diff_summary, _build_single_result_panel  # noqa: F401
-
-
-def _noise_label(sigma: float) -> str:
-    if sigma == 0.0:
-        return "Clean"
-    if sigma <= 0.15:
-        return "Light"
-    if sigma <= 0.30:
-        return "Medium"
-    return "Heavy"
 
 
 def toggle_wave_fn(enabled: list[str]) -> tuple[dict, dict]:
@@ -60,19 +50,41 @@ def reset_cb_fn(_: Any) -> list[Any]:
         [DEFAULTS[i]["phase"] for i in range(4)] +
         [["on"] for _ in range(4)] +
         [[] for _ in range(4)] +
-        [DEFAULTS[i]["sampling_rate"] for i in range(4)]
+        [DEFAULTS[i]["sampling_rate"] for i in range(4)] +
+        [DEFAULTS[i].get("alpha", 0) for i in range(4)] +
+        [DEFAULTS[i].get("beta", 0) for i in range(4)]
     )
 
 
-def register_server_callbacks(app: Any, gatekeeper: Any) -> None:
+_SLIDER_UNITS: dict[str, str] = {
+    "freq": "Hz", "amp": "", "phase": "rad", "sr": "Hz",
+    "alpha": "%", "beta": "%",
+}
+
+
+def register_value_display_callbacks(app: Any) -> None:
+    for i in range(4):
+        for key, unit in _SLIDER_UNITS.items():
+            sid = f"{key}-{i}"
+            suffix = f" {unit}" if unit else ""
+            app.clientside_callback(
+                f"function(v) {{ return v !== null && v !== undefined ? v + '{suffix}' : '—'; }}",
+                Output(f"{sid}-val", "children"),
+                Input(sid, "value"),
+            )
+    app.clientside_callback(
+        "function(v) { return v !== null && v !== undefined ? v + ' s' : '—'; }",
+        Output("window-slider-val", "children"),
+        Input("window-slider", "value"),
+    )
+
+
+def register_server_callbacks(app: Any) -> None:
+    register_value_display_callbacks(app)
     for i in range(4):
         _register_toggle_wave(app, i)
         _register_toggle_sr(app, i)
         _register_update_vector(app, i)
-
-    @app.callback(Output("noise-label", "children"), Input("noise-slider", "value"))
-    def noise_label_cb(sigma: float) -> str:
-        return _noise_label(float(sigma or 0.0))
 
     @app.callback(
         [Output(f"freq-{i}", "value") for i in range(4)] +
@@ -80,7 +92,9 @@ def register_server_callbacks(app: Any, gatekeeper: Any) -> None:
         [Output(f"phase-{i}", "value") for i in range(4)] +
         [Output(f"enabled-{i}", "value") for i in range(4)] +
         [Output(f"dots-{i}", "value") for i in range(4)] +
-        [Output(f"sr-{i}", "value") for i in range(4)],
+        [Output(f"sr-{i}", "value") for i in range(4)] +
+        [Output(f"alpha-{i}", "value") for i in range(4)] +
+        [Output(f"beta-{i}", "value") for i in range(4)],
         Input("reset-btn", "n_clicks"),
         prevent_initial_call=True,
     )
@@ -88,13 +102,16 @@ def register_server_callbacks(app: Any, gatekeeper: Any) -> None:
         return reset_cb_fn(n)
 
     @app.callback(
-        Output("channel-vector", "data"),
+        Output("active-channels", "data"),
         [Input(f"enabled-{i}", "value") for i in range(4)],
     )
     def channel_vector_cb(*enabled_values: list[str]) -> list[int]:
         return compute_channel_vector(*enabled_values)
 
-    register_identify_callback(app, gatekeeper)
+    # extract-vector is fixed at [0, 1, 0, 0] (Second Harmonic) — no callback needed;
+    # the dcc.Store initial value in layout.py provides the constant.
+    register_id_mode_callbacks(app)
+    register_identify_callback(app)
 
 
 def _register_toggle_wave(app: Any, i: int) -> None:
@@ -120,3 +137,5 @@ def _register_update_vector(app: Any, i: int) -> None:
     )
     def update_vector(dots: list[str], sr: float, freq: float, amp: float, phase: float) -> Any:
         return update_vector_fn(i, dots, sr, freq, amp, phase)
+
+

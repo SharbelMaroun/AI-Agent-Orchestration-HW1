@@ -17,8 +17,10 @@ APP_CONFIG_REQUIRED_KEYS = (
     "version",
     "window_duration",
     "window_points",
-    "noise_default",
-    "noise_max",
+    "alpha_default",
+    "beta_default",
+    "alpha_max",
+    "beta_max",
 )
 
 RATE_LIMITS_REQUIRED_KEYS = (
@@ -62,3 +64,8 @@ def load_rate_limits(config_path: Path | None = None) -> dict[str, Any]:
     config = _load_json_file(target_path)
     _validate_keys(config, RATE_LIMITS_REQUIRED_KEYS)
     return config
+
+
+def load_training_config(config_path: Path | None = None) -> dict[str, Any]:
+    target_path = config_path or (CONFIG_DIR / "training_config.json")
+    return _load_json_file(target_path)

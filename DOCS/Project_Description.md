@@ -1,5 +1,13 @@
 # Fourier Frequency App — Project Description
 
+> **⚠️ Design Update (v1.05)** — This document is the original design proposal. The current Identification Mode is **regression of the chosen channel's 10 coordinates** from a **10-sample window** (= 0.5 s at the identification-mode sampling rate of 20 Hz). Three algorithms run side-by-side on every Identify click:
+>
+> - **Fourier projection** — deterministic least-squares baseline that solves the 4-component decomposition exactly given the known channel frequencies.
+> - **`BookRNNRegressor`** — manual book-faithful Elman RNN (no `nn.RNN`); per-step input is `[sample_t, C_0..C_3]`; output is 10 real-valued coordinates.
+> - **`BookLSTMRegressor`** — manual book-faithful LSTM (no `nn.LSTM`); same input format; same 10-d output.
+>
+> The original Project Description's ML-classification design (RNN/LSTM as classifiers, 1-second / 50-point windows, side-by-side class predictions) is **superseded**. See `DOCS/PRD.md` (FR-06, FR-07, FR-10, FR-11), `DOCS/PRD_RNN.md`, `DOCS/PRD_LSTM.md`, and ADR-07 / ADR-09 / ADR-10 in `DOCS/PLAN.md`. The original Project Description sections below are kept for historical reference only.
+
 ## 1. Executive Summary
 
 The **Fourier Frequency App** is an interactive, browser-based signal synthesis and visualization tool built with Python and Dash. It enables users to compose complex waveforms in real time by layering up to four independent sinusoidal harmonics, adjusting their frequency, amplitude, and phase, and immediately observing how those individual waves combine into a composite signal. The application is primarily an educational instrument, designed to make the abstract mathematics of Fourier synthesis tangible and visually intuitive — bridging the gap between textbook theory and hands-on experimentation.

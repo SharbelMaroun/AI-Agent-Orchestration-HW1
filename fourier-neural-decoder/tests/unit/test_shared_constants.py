@@ -2,15 +2,15 @@ from fourier.shared.constants import DEFAULTS, WAVE_NAMES
 
 
 def test_first_wave_name() -> None:
-    assert WAVE_NAMES[0] == "Fundamental"
+    assert WAVE_NAMES[0] == "sin1"
 
 
 def test_fourth_wave_name() -> None:
-    assert WAVE_NAMES[3] == "Fourth Harmonic"
+    assert WAVE_NAMES[3] == "sin4"
 
 
 def test_defaults_entries_have_required_keys() -> None:
-    expected_keys = {"amplitude", "frequency", "phase", "sampling_rate"}
+    expected_keys = {"amplitude", "frequency", "phase", "sampling_rate", "alpha", "beta"}
     for channel_defaults in DEFAULTS:
         assert set(channel_defaults.keys()) == expected_keys
 

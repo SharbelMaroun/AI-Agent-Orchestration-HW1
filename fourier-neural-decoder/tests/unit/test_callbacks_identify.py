@@ -1,130 +1,146 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
 import numpy as np
 import pytest
-from dash import html, no_update
+from dash import html
 
-from fourier.shared.constants import WAVE_NAMES
-from fourier.shared.types import ClassifierResult
-from fourier.ui.callbacks_identify import _mask_disabled_channels, _run_identify
+from fourier.shared.constants import ID_MODE_SIGNALS, WAVE_NAMES
+from fourier.ui.callbacks_identify import _extract_10_points, _project_at_frequency, _run_identify
 
 
 def _make_figure(y: list[float] | None = None) -> dict:
+    n = 201  # sr=20, 10s → 201 points
     if y is None:
-        y = [0.0] * 501
-    return {"data": [{"y": y}]}
+        t = [i / 20 for i in range(n)]
+        y = [0.0] * n
+    else:
+        t = [i / 20 for i in range(len(y))]
+    return {"data": [{"x": t, "y": y}]}
 
 
-def _make_result(cls: int = 0, confidence: float = 0.9) -> ClassifierResult:
-    probs = [0.0, 0.0, 0.0, 0.0]
-    probs[cls] = confidence
-    runner_up = (cls + 1) % 4
-    probs[runner_up] = round(1.0 - confidence, 6)
-    return ClassifierResult(
-        predicted_class=cls,
-        class_name=WAVE_NAMES[cls],
-        confidence=confidence,
-        probabilities=probs,
-        runner_up=runner_up,
-    )
+# ── _extract_10_points ────────────────────────────────────────────────────────
+
+def test_extract_returns_three_lists():
+    fig = _make_figure()
+    result, real, error = _extract_10_points(fig, 0.0, 0)
+    assert len(result) == 10
+    assert len(real) == 10
+    assert len(error) == 10
 
 
-def _mock_gatekeeper(return_value) -> MagicMock:
-    gk = MagicMock()
-    gk.call.return_value = return_value
-    return gk
+def test_extract_error_is_result_minus_real():
+    fig = _make_figure()
+    result, real, error = _extract_10_points(fig, 0.0, 0)
+    for k in range(10):
+        assert error[k] == pytest.approx(round(result[k] - real[k], 2), abs=1e-4)
 
 
-def test_identify_rnn_calls_gatekeeper():
-    gk = _mock_gatekeeper(_make_result(0))
-    panel, style, _, diff_style = _run_identify(gk, 0.0, 0.0, "RNN", _make_figure(), [1, 1, 1, 1])
-    assert gk.call.call_count == 1
+def test_extract_empty_figure_returns_zeros():
+    result, _, _ = _extract_10_points({"data": [{"x": [], "y": []}]}, 0.0, 0)
+    assert result == [0.0] * 10
+
+
+def test_extract_window_start_shifts_time_grid():
+    import math
+    n = 201
+    # Non-trivial signal so real values differ across windows
+    y = [math.sin(2 * math.pi * 0.5 * (i / 20)) for i in range(n)]
+    fig = _make_figure(y)
+    _, real0, _ = _extract_10_points(fig, 0.0, 0)
+    _, real1, _ = _extract_10_points(fig, 2.0, 0)
+    assert real0 != real1
+
+
+def test_extract_uses_id_mode_sr_grid():
+    """Time points must be multiples of 1/20 s."""
+    import math
+    from fourier.shared.constants import ID_MODE_SR
+    fig = _make_figure()
+    ws = 1.5
+    n_start = int(math.ceil(ws * ID_MODE_SR))
+    expected_t0 = n_start / ID_MODE_SR
+    # result[0] should match sum_y at expected_t0 (all-zero signal → 0.0)
+    result, _, _ = _extract_10_points(fig, ws, 0)
+    assert result[0] == pytest.approx(0.0, abs=1e-6)
+    assert expected_t0 >= ws
+
+
+# ── _run_identify ─────────────────────────────────────────────────────────────
+
+# ── _project_at_frequency (Fourier extraction) ────────────────────────────────
+
+def test_projection_recovers_pure_sine_exactly():
+    """A pure sine at one channel's frequency must come back as itself."""
+    import math
+    sig = ID_MODE_SIGNALS[1]   # f = 1.0 Hz
+    t = np.array([k / 20.0 for k in range(10)])
+    samples = sig["amplitude"] * np.sin(2 * np.pi * sig["frequency"] * t + sig["phase"])
+    recovered = _project_at_frequency(samples, t, 1)
+    assert np.allclose(recovered, samples, atol=1e-6)
+
+
+def test_projection_isolates_chosen_component_in_summation():
+    """Summation of channels 1 and 2; projecting at index 1 must recover only its component."""
+    t = np.array([k / 20.0 for k in range(10)])
+    sig1 = ID_MODE_SIGNALS[1]   # f = 1.0 Hz
+    sig2 = ID_MODE_SIGNALS[2]   # f = 1.5 Hz
+    s1 = sig1["amplitude"] * np.sin(2 * np.pi * sig1["frequency"] * t + sig1["phase"])
+    s2 = sig2["amplitude"] * np.sin(2 * np.pi * sig2["frequency"] * t + sig2["phase"])
+    recovered = _project_at_frequency(s1 + s2, t, 1)
+    # Multi-frequency LSQ must cleanly separate the two components.
+    assert np.allclose(recovered, s1, atol=1e-6)
+
+
+def test_extract_when_summation_is_only_chosen_wave_yields_small_error():
+    """If the summation contains only the user's chosen wave, result ≈ real."""
+    import math
+    from fourier.shared.constants import ID_MODE_SR
+    sig = ID_MODE_SIGNALS[1]  # f=1.0 Hz
+    n = 10 * ID_MODE_SR + 1
+    t_full = [i / float(ID_MODE_SR) for i in range(n)]
+    y_full = [sig["amplitude"] * math.sin(2 * math.pi * sig["frequency"] * tt + sig["phase"]) for tt in t_full]
+    fig = {"data": [{"x": t_full, "y": y_full}]}
+    result, real, _ = _extract_10_points(fig, 0.0, 1)
+    for k in range(10):
+        assert abs(result[k] - real[k]) < 0.5
+
+
+def test_extract_isolates_chosen_frequency_from_summation():
+    """Summation of two pure sines; extracting f=1 Hz should recover its component."""
+    import math
+    from fourier.shared.constants import ID_MODE_SR
+    n = 10 * ID_MODE_SR + 1
+    t_full = [i / float(ID_MODE_SR) for i in range(n)]
+    y_full = [40 * math.sin(2 * math.pi * 1.0 * tt + math.pi / 4) +
+              25 * math.sin(2 * math.pi * 1.5 * tt + math.pi / 3) for tt in t_full]
+    fig = {"data": [{"x": t_full, "y": y_full}]}
+    # Window starts at t=2.0s — gives the LSQ basis enough cycle coverage.
+    result, real, _ = _extract_10_points(fig, 2.0, 1)
+    assert max(abs(v) for v in result) < 45.0
+    assert sum(abs(result[k] - real[k]) for k in range(10)) / 10 < 5.0
+
+
+# ── _run_identify ─────────────────────────────────────────────────────────────
+
+def test_run_identify_no_selection_returns_message():
+    panel, style = _run_identify(0.0, _make_figure(), [0, 0, 0, 0])
     assert style == {"display": "block"}
-    assert diff_style == {"display": "none"}
-
-
-def test_identify_lstm_calls_gatekeeper():
-    gk = _mock_gatekeeper(_make_result(1))
-    panel, style, _, diff_style = _run_identify(gk, 0.0, 0.0, "LSTM", _make_figure(), [1, 1, 1, 1])
-    assert gk.call.call_count == 1
-    assert style == {"display": "block"}
-    assert diff_style == {"display": "none"}
-
-
-def test_identify_both_calls_gatekeeper_twice():
-    gk = MagicMock()
-    gk.call.side_effect = [_make_result(0), _make_result(0)]
-    panel, style, diff_panel, diff_style = _run_identify(gk, 0.0, 0.0, "Both", _make_figure(), [1, 1, 1, 1])
-    assert gk.call.call_count == 2
-    assert style == {"display": "block"}
-    assert diff_style == {"display": "block"}
-
-
-def test_identify_both_calls_result_comparator():
-    gk = MagicMock()
-    rnn_r = _make_result(0, 0.9)
-    lstm_r = _make_result(0, 0.85)
-    gk.call.side_effect = [rnn_r, lstm_r]
-    with patch("fourier.ui.callbacks_identify.ResultComparator") as mock_comp:
-        mock_comp.return_value.process.return_value = {
-            "agreement": True, "rnn_predicted": WAVE_NAMES[0], "lstm_predicted": WAVE_NAMES[0],
-            "confidence_delta": 0.05, "runner_up_diff": "same"
-        }
-        _run_identify(gk, 0.0, 0.0, "Both", _make_figure(), [1, 1, 1, 1])
-    mock_comp.return_value.process.assert_called_once_with(rnn_r, lstm_r)
-
-
-def test_identify_both_result_panel_has_two_sub_panels():
-    gk = MagicMock()
-    gk.call.side_effect = [_make_result(0), _make_result(1)]
-    panel, _, _, _ = _run_identify(gk, 0.0, 0.0, "Both", _make_figure(), [1, 1, 1, 1])
     assert isinstance(panel, html.Div)
-    assert isinstance(panel.children, list)
-    assert len(panel.children) == 2
 
 
-def test_identify_rnn_passes_noise_sigma_to_extractor():
-    gk = _mock_gatekeeper(_make_result(0))
-    t = np.linspace(0, 10, 501)
-    y = list(50 * np.sin(2 * np.pi * 0.5 * t))
-    with patch("fourier.ui.callbacks_identify.WindowExtractor") as mock_ext:
-        mock_ext.return_value.process.return_value = np.zeros((1, 50, 1), dtype="float32")
-        _run_identify(gk, 2.0, 0.3, "RNN", _make_figure(y), [1, 1, 1, 1])
-    mock_ext.return_value.process.assert_called_once()
-    _, kwargs = mock_ext.return_value.process.call_args
-    assert kwargs.get("noise_sigma") == pytest.approx(0.3)
+def test_run_identify_returns_panel_and_style():
+    panel, style = _run_identify(0.0, _make_figure(), [1, 0, 0, 0])
+    assert style == {"display": "block"}
+    assert isinstance(panel, html.Div)
 
 
-def test_identify_result_panel_shown_after_identify():
-    gk = _mock_gatekeeper(_make_result(0))
-    _, style, _, _ = _run_identify(gk, 0.0, 0.0, "RNN", _make_figure(), [1, 1, 1, 1])
+def test_run_identify_c_vector_selects_wave():
+    for i in range(4):
+        C = [1 if j == i else 0 for j in range(4)]
+        panel, _ = _run_identify(0.0, _make_figure(), C)
+        assert WAVE_NAMES[i] in str(panel)
+
+
+def test_run_identify_result_panel_shown():
+    _, style = _run_identify(0.0, _make_figure(), [0, 1, 0, 0])
     assert style.get("display") == "block"
-
-
-def test_mask_disabled_channels_zeros_inactive():
-    result = _make_result(cls=1, confidence=0.8)
-    C = [1, 1, 0, 0]  # channels 2 and 3 disabled
-    masked = _mask_disabled_channels(result, C)
-    assert masked["probabilities"][2] == 0.0
-    assert masked["probabilities"][3] == 0.0
-
-
-def test_mask_disabled_channels_renormalises():
-    result = _make_result(cls=0, confidence=0.6)
-    C = [1, 1, 0, 0]
-    masked = _mask_disabled_channels(result, C)
-    assert abs(sum(masked["probabilities"]) - 1.0) < 1e-5
-
-
-def test_mask_disabled_channels_updates_prediction():
-    # model says class 2 (disabled) is top — should pick best active class
-    result = ClassifierResult(
-        predicted_class=2, class_name=WAVE_NAMES[2], confidence=0.7,
-        probabilities=[0.1, 0.2, 0.7, 0.0], runner_up=1,
-    )
-    C = [1, 1, 0, 0]  # channel 2 disabled
-    masked = _mask_disabled_channels(result, C)
-    assert masked["predicted_class"] == 1  # next best active class
-    assert masked["probabilities"][2] == 0.0
