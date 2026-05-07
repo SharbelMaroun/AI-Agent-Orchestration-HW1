@@ -5,7 +5,7 @@ from typing import Any
 
 from dash import Input, Output, html
 
-from fourier.shared.constants import COLORS, DEFAULTS
+from fourier.shared.constants import COLORS
 from fourier.ui.callbacks_id_mode import register_id_mode_callbacks
 from fourier.ui.callbacks_identify import register_identify_callback
 
@@ -43,19 +43,6 @@ def compute_channel_vector(*enabled_values: list[str]) -> list[int]:
     return [1 if bool(e) else 0 for e in enabled_values]
 
 
-def reset_cb_fn(_: Any) -> list[Any]:
-    return (
-        [DEFAULTS[i]["frequency"] for i in range(4)] +
-        [DEFAULTS[i]["amplitude"] for i in range(4)] +
-        [DEFAULTS[i]["phase"] for i in range(4)] +
-        [["on"] for _ in range(4)] +
-        [[] for _ in range(4)] +
-        [DEFAULTS[i]["sampling_rate"] for i in range(4)] +
-        [DEFAULTS[i].get("alpha", 0) for i in range(4)] +
-        [DEFAULTS[i].get("beta", 0) for i in range(4)]
-    )
-
-
 _SLIDER_UNITS: dict[str, str] = {
     "freq": "Hz", "amp": "", "phase": "rad", "sr": "Hz",
     "alpha": "%", "beta": "%",
@@ -85,21 +72,6 @@ def register_server_callbacks(app: Any) -> None:
         _register_toggle_wave(app, i)
         _register_toggle_sr(app, i)
         _register_update_vector(app, i)
-
-    @app.callback(
-        [Output(f"freq-{i}", "value") for i in range(4)] +
-        [Output(f"amp-{i}", "value") for i in range(4)] +
-        [Output(f"phase-{i}", "value") for i in range(4)] +
-        [Output(f"enabled-{i}", "value") for i in range(4)] +
-        [Output(f"dots-{i}", "value") for i in range(4)] +
-        [Output(f"sr-{i}", "value") for i in range(4)] +
-        [Output(f"alpha-{i}", "value") for i in range(4)] +
-        [Output(f"beta-{i}", "value") for i in range(4)],
-        Input("reset-btn", "n_clicks"),
-        prevent_initial_call=True,
-    )
-    def reset_cb(n: Any) -> list[Any]:
-        return reset_cb_fn(n)
 
     @app.callback(
         Output("active-channels", "data"),

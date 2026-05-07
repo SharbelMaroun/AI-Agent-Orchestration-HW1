@@ -91,11 +91,10 @@ class FCRegressor:
         self.model.load_state_dict(state)
 
     def process(self, window: np.ndarray, c_vector: list[int]) -> RegressorResult:
-        raw = np.asarray(window, dtype=np.float32).reshape(-1)
-        scale = float(np.max(np.abs(raw))) or 1.0
-        arr = (raw / scale).astype(np.float32).reshape(1, -1, 1)
+        # Raw scale matches training — no normalization.
+        arr = np.asarray(window, dtype=np.float32).reshape(1, -1, 1)
         c = np.asarray(c_vector, dtype=np.float32).reshape(1, -1)
         with torch.no_grad():
             out = self.model(torch.from_numpy(arr), torch.from_numpy(c))
-        coords = (out.squeeze(0).numpy() * scale).tolist()
+        coords = out.squeeze(0).numpy().tolist()
         return RegressorResult(coordinates=[float(v) for v in coords], mae=0.0)

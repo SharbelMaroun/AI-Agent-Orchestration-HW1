@@ -29,7 +29,9 @@
       "Bash(rm -fv src/fourier/sdk/rnn_classifier.py src/fourier/sdk/lstm_classifier.py src/fourier/sdk/fc_classifier.py src/fourier/services/train_rnn.py src/fourier/services/train_lstm.py src/fourier/services/train_fc.py tests/unit/test_rnn_classifier.py tests/unit/test_lstm_classifier.py tests/unit/test_fc_classifier.py weights/rnn.pt weights/lstm.pt weights/fc.pt)",
       "Bash(rmdir weights *)",
       "Bash(tasklist)",
-      "Bash(xargs wc -l)"
+      "Bash(xargs wc -l)",
+      "Bash(git show *)",
+      "Read(//tmp/**)"
     ]
   }
 }

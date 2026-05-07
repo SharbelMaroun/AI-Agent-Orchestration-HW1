@@ -3,21 +3,8 @@ from __future__ import annotations
 import pytest
 from fourier.shared.constants import DEFAULTS
 from fourier.ui.callbacks_server import (
-    toggle_wave_fn, toggle_sr_fn, update_vector_fn, reset_cb_fn
+    toggle_wave_fn, toggle_sr_fn, update_vector_fn,
 )
-
-
-def test_reset_logic():
-    results = reset_cb_fn(1)
-    # 6 groups × 4 (freq, amp, phase, enabled, dots, sr) + 2 × 4 (alpha, beta) = 32
-    assert len(results) == 32
-    assert results[0] == DEFAULTS[0]["frequency"]
-    assert results[4] == DEFAULTS[0]["amplitude"]
-    assert results[12] == ["on"]
-    assert results[16] == []
-    assert results[20] == DEFAULTS[0]["sampling_rate"]
-    assert results[24] == DEFAULTS[0].get("alpha", 0)
-    assert results[28] == DEFAULTS[0].get("beta", 0)
 
 
 def test_toggle_wave_logic():

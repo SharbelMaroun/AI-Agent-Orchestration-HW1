@@ -49,6 +49,8 @@ omit = [
     "*/services/train_rnn.py",
     "*/services/train_lstm.py",
     "*/services/train_fc.py",
+    "*/services/_train_loop.py",
+    "*/services/train_all.py",
 ]
 
 [tool.coverage.report]

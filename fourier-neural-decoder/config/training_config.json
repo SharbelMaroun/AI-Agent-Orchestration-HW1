@@ -24,12 +24,10 @@
     "grad_clip": 1.0
   },
   "data": {
-    "n_samples": 6000,
+    "n_samples": 20000,
     "test_ratio": 0.2,
-    "alpha_train_max": 1.0,
-    "beta_train_max": 1.0,
-    "amp_min": 10,
-    "amp_max": 60,
+    "alpha_train_max": 0.3,
+    "beta_train_max": 0.3,
     "seed": 42
   }
 }

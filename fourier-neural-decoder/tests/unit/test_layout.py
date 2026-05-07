@@ -46,12 +46,6 @@ def test_build_layout_returns_html_div():
     assert isinstance(build_layout(), html.Div)
 
 
-def test_header_contains_reset_btn():
-    header = _build_header()
-    ids = _find_ids(header)
-    assert "reset-btn" in ids
-
-
 def test_header_contains_fourier_synthesis():
     header = _build_header()
     assert _contains_text(header, "Fourier Synthesis")

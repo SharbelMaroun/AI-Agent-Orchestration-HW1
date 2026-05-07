@@ -1,6 +1,8 @@
 ﻿# PLAN — Fourier Frequency App
 **Version:** 1.07 | **Status:** Approved | **Owner:** sharbelm
 
+> **Note (v1.07b):** `INSTRUCTIONS.md` was renamed to **`CLAUDE.md`** at the project root so Claude Code auto-loads it every session. References to `INSTRUCTIONS.md` below (ADR statuses, Section 4 directory blueprint, etc.) all point to the current `CLAUDE.md`.
+
 ---
 
 ## 1. C4 Model
@@ -255,7 +257,7 @@ class SignalResult:
 **Consequences:**
 - Direct comparison: same training data, same loss, same evaluation pipeline, only architecture differs. ✓
 - The FC is permutation-invariant on the input — documented limitation that makes it the proper baseline.
-- Empirically (default 4-channel summation) the FC reaches **summed MAE 43.76**, beating LSTM (47.81) and RNN (57.77). On this task and at this sequence length, recurrence does not earn its extra parameters.
+- **Latest empirical results (v1.07c, clean training, locked `chosen = sin2`, no normalisation):** LSTM MAE = **5.55** (best), RNN MAE = 8.36, FC MAE = 10.87. The LSTM advantage finally materialises once the per-sample-normalisation bug is removed (see ADR-007 / Bug A in REPORT.md) and the C-vector mismatch is fixed (training now exclusively on `chosen = sin2`). Earlier v1.06 numbers (FC 43.76 / LSTM 47.81 / RNN 57.77) are kept here for historical context but no longer reflect the current pipeline — see [`README.md` §11](../README.md) and [`REPORT.md`](REPORT.md) for the up-to-date comparison.
 - Inference cost: FC ≪ RNN < LSTM (no time loop in FC).
 
 ---
@@ -339,7 +341,7 @@ Until any of those land, single-threaded is the simpler, faster, and easier-to-d
 - Training generator `_generate_dataset` draws `n_start ~ Uniform{0, …, 10 000−10}` per example so the model sees windows from anywhere in the 10 s range.
 
 **Consequences:**
-- Per-window MAE rose vs. 20 Hz (≈ 1.2 vs ≈ 0.3 in raw amplitude units, ~2–3 % of typical channel amplitude). Inherent to the spec — a 10 ms window covers only 1/200 of a 0.5 Hz cycle, so the network sees near-flat slices.
+- Per-window MAE rose vs. the legacy 20 Hz / 0.5 s baseline. The 1 kHz / 10 ms regime drove subsequent fixes (ADR-007 noise model, normalisation removal, locked-`chosen` training) which together brought clean-mode MAE down to **5.55 (LSTM) / 8.36 (RNN) / 10.87 (FC)** — see [`README.md` §11](../README.md) for the latest table.
 - Inference rendering remains responsive (Plotly handles 10 K dots fine on modern browsers).
 - One-sample slider precision lets the user examine arbitrary 10-sample positions, not just multiples of 0.1 s.
 
@@ -478,6 +480,8 @@ Until any of those land, single-threaded is the simpler, faster, and easier-to-d
 ---
 
 ## 4. Directory Blueprint (per INSTRUCTIONS.md)
+
+> **HISTORICAL — do not use as a reference for the v1.07 codebase.** The blueprint and API-schema example below describe the original v1.00 *classification* design (`rnn_classifier.py`, `lstm_classifier.py`, `result_comparator.py`, `train_models.py`, `models/*.pt`). Most of those files were deleted when the project pivoted to *regression* in v1.05+. For the **current** directory layout and entry points, see the **root [`README.md`](../README.md) §"Project Directory"** and ADRs 7–10 above.
 
 ```
 fourier-freq-app/
