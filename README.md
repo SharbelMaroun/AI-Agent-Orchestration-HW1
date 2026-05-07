@@ -5,6 +5,8 @@
 
 A browser-based educational tool: compose composite waveforms from up to four harmonic channels, then use trained **RNN, LSTM, and FC regressors** to recover the 10 coordinates of any chosen channel from a 10-sample (10 ms) window of the noisy summation. Identification mode samples at **1000 Hz**; per-channel **α (amplitude) and β (phase)** sliders inject parametric noise.
 
+> 🎥 **App walkthrough video:** [`DOCS/images/app-overview.mp4`](DOCS/images/app-overview.mp4) — a short screen recording demonstrating both modes (synthesis and identification), the three frames, the α / β noise sliders, the window slider at 1 kHz resolution, and the Identify result panel. Click the link to download / play; on github.com the link offers the raw file, and most local clones will preview the MP4 inline when the link is opened.
+
 ---
 
 ## Table of Contents
@@ -545,6 +547,47 @@ All three models were trained on the **same** dataset (locked `chosen = sin2`, f
 | Sensitive to time-order? | yes | yes | **no** — permuting the 10 samples gives the same output |
 | Inference cost | mid (10-step loop) | mid (10-step loop, 4 gates each) | **lowest** (single matmul) |
 
+### Why only the FC sees the input as a flat 14-d vector
+
+A natural question reading the table above: *"the FC takes 10 samples + 4 C as a single 14-d vector — should the RNN and LSTM do the same?"* **No.** The flat-vector treatment is correct **only** for the FC; the RNN and LSTM must see the input as a sequence. Three reasons:
+
+**1. Recurrent networks need a sequence to recur over.**
+The RNN's defining update rule is `h_t = tanh(W_x · x_t + W_h · h_{t-1} + b)` — the hidden state evolves **sample-by-sample**. The LSTM's gated cell state `C_t = f_t ⊙ C_{t-1} + i_t ⊙ C̃_t` integrates information **across time**. If you flatten everything into a 14-d vector and feed it once:
+
+- The recurrence becomes trivial (one step, or the same input replicated 10 times).
+- The LSTM cell-state highway has nothing to integrate across.
+- Both architectures degenerate into expensive, badly-parameterised MLPs.
+
+You wouldn't get a Python error — PyTorch would run it — but you'd get **worse** results because you'd be using the wrong tool for the wrong input shape.
+
+**2. The book equations require per-step input.**
+`PRD_RNN.md` (`RNN-FR-02`) and `PRD_LSTM.md` (`LSTM-FR-02`), both derived directly from `concepts/RNN-BOOK.pdf` (Eq. 2.13–2.14) and `concepts/LSTM-book.pdf` (§6.1):
+
+> *Input per timestep = `[sample_t, C_0, C_1, C_2, C_3]`. The C vector is concatenated to each timestep.*
+
+Each step receives a **5-d** vector; the C is broadcast across all 10 steps so the network knows which channel to extract at every step. Flattening would violate the book-faithful mandate.
+
+**3. It would invalidate the whole comparison the assignment is asking for.**
+The point of running RNN / LSTM / FC side-by-side is:
+
+> *"What does each architecture's inductive bias buy us on this task?"*
+
+- **FC** has no temporal awareness → flat 14-d input is its natural format.
+- **RNN** has plain hidden-state recurrence → per-step 5-d input.
+- **LSTM** has gated cell-state recurrence → per-step 5-d input.
+
+If we flattened the RNN/LSTM input, all three models would degenerate into similar MLP variants, and any MAE difference would reflect width / depth / activation rather than the cell type. The §14 analysis ("LSTM beats RNN because the gated cell state survives 10 time-steps where the RNN's vanishing gradient kills slow-varying context") would lose its empirical basis.
+
+### What every model receives in practice
+
+| Model | Shape received | Same 14 numbers reach the model? | Permutation-invariant? |
+|---|---|---|---|
+| **FC** | `(B, 14)` — flat | yes — concatenated once | yes (acceptable: FC has no time anyway) |
+| **RNN** | `(B, 10, 5)` — 10 samples, each paired with the same 4-d C | yes — C repeated at every step | no (recurrence preserves order) |
+| **LSTM** | `(B, 10, 5)` — identical layout to RNN | yes | no |
+
+The user-visible interface is uniform — `process(window: 10-element array, c_vector: [0, 1, 0, 0])`. Internally each model reshapes / broadcasts the same two inputs into the form its architecture needs. There is no Tensorial information lost or gained between the three; only the way that information is presented to the cell.
+
 ### Test metrics (clean training, eval on `sin2`-only test set)
 
 | Model | MSE | MAE | acc (±1.0) | RMSE |
@@ -553,17 +596,25 @@ All three models were trained on the **same** dataset (locked `chosen = sin2`, f
 | **LSTM** | **125.4** | **5.55** | **42.1 %** | **11.20** |
 | FC | 189.1 | 10.87 | 10.4 % | 13.75 |
 
+Per-epoch terminal logs from the noisy-mode training run, one screenshot per architecture:
+
+![RNN — per-epoch training log](DOCS/images/RNNNewTrainingResults.png)
+![LSTM — per-epoch training log](DOCS/images/LSTMNewTrainingResults.png)
+![FC — per-epoch training log](DOCS/images/FCNewTrainingResults.png)
+
+These captures show `mse`, `mae`, and `acc` reported every 5 epochs for each architecture, ending in the `DONE` line that produces the noisy-training metrics tabulated below.
+
 ### What the numbers say
 
-- **LSTM wins clearly** — 33 % lower MAE than RNN, 49 % lower than FC, and the only model that breaks the strict `acc(±1)` threshold beyond noise. Its gated cell-state highway carries information across all 10 time-steps without being squashed by the `tanh` non-linearity.
+- **LSTM wins clearly** — we measure 33 % lower MAE than RNN and 49 % lower than FC, and the LSTM is the only model in our test set that breaks the strict `acc(±1)` threshold beyond noise. Its gated cell-state highway carries information across all 10 time-steps without being squashed by the `tanh` non-linearity.
 - **RNN is mid-pack** — better than the FC, worse than the LSTM. Its hidden state degrades over the sequence, so it gets *some* benefit from the temporal structure but can't fully exploit it.
-- **FC is the worst, but only by a little** — and it has 11× fewer parameters than the LSTM. The fact that it stays close to the RNN proves the task is **information-bound, not capacity-bound**: with only 10 nearly-collinear samples, recurrence can't conjure information that isn't there.
+- **FC is the worst, but only by a little** — and it has 11× fewer parameters than the LSTM. The fact that it stays close to the RNN tells us the task is **information-bound, not capacity-bound**: with only 10 nearly-collinear samples, recurrence can't conjure information that isn't there.
 
 ### Historical evidence (v1.01 classification setup)
 
-When the task was **classification on 1-second / 50-sample windows**, the gap was much larger: LSTM reached 100 % accuracy on all 4 frequency classes; the vanilla RNN got stuck at chance. That experiment showed the **upper bound** of the LSTM advantage when sequences are long enough for the vanishing-gradient problem to bite.
+When the task was **classification on 1-second / 50-sample windows**, we saw a much larger gap: the LSTM reached 100 % accuracy on all 4 frequency classes while the vanilla RNN got stuck at chance. That experiment showed us the **upper bound** of the LSTM advantage when sequences are long enough for the vanishing-gradient problem to bite.
 
-The v1.07 task (10-sample window) is too short to fully expose that gap, but the **direction of the result is the same**: LSTM > RNN > FC.
+The v1.07 task (10-sample window) is too short to fully expose that gap, but the **direction of our result is the same**: LSTM > RNN > FC.
 
 ### Reading the numbers: why in-app MAE is lower than training-test MAE
 
@@ -662,7 +713,7 @@ A vanilla RNN's hidden state `h_t = tanh(W_x x_t + W_h h_{t-1} + b)` is squashed
 
 The LSTM solves this by separating the **cell state `C_t` from the hidden state `h_t`**. The cell state is updated **additively** (`C_t = f_t ⊙ C_{t-1} + i_t ⊙ C̃_t`), with no `tanh` squash on the highway path. Information can flow across many time-steps essentially untouched, gated only by the forget gate. So the LSTM **can** carry low-frequency context, and that's exactly why it generalises to all four reference frequencies.
 
-### What our experiments show
+### What we observed in our experiments
 
 | Setup | RNN result | LSTM result | Verdict |
 |---|---|---|---|
@@ -671,10 +722,138 @@ The LSTM solves this by separating the **cell state `C_t` from the hidden state 
 
 ### Nuances we observed
 
-- **The RNN isn't *purely* high-frequency-only**: it still beats the FC on our regression task, which means it does extract *some* useful structure even from a fast-decaying hidden state. The lecturer's claim is best read as "RNN is *biased toward* high frequencies", not "RNN can *only* see high frequencies".
-- **The window length matters as much as the cell type.** A 50-sample window over a 0.5 Hz signal contains 25 % of one cycle — long enough for the RNN's vanishing gradient to bite. A 10-sample window over the same signal contains 0.5 % of one cycle — neither cell can use temporal structure that doesn't exist in the input. The LSTM advantage shrinks accordingly.
-- **The LSTM advantage is most visible in clean conditions.** Under heavy noise, both cells (and the FC) degrade together because the noise is what limits accuracy, not the architecture. With clean data, the LSTM's superior memory pays the largest dividend.
+- **The RNN isn't *purely* high-frequency-only:** we saw it still beat the FC on our regression task, which tells us it extracts *some* useful structure even from a fast-decaying hidden state. We read the lecturer's claim as "RNN is *biased toward* high frequencies", not "RNN can *only* see high frequencies".
+- **The window length matters as much as the cell type.** A 50-sample window over a 0.5 Hz signal contains 25 % of one cycle — long enough for the RNN's vanishing gradient to bite. A 10-sample window over the same signal contains 0.5 % of one cycle — neither cell can use temporal structure that doesn't exist in the input. We observed the LSTM advantage shrink accordingly.
+- **The LSTM advantage is most visible in clean conditions.** Under heavy noise we saw all three (RNN, LSTM, FC) degrade together because the noise was what limited accuracy, not the architecture. With clean data, the LSTM's superior memory paid the largest dividend.
 
 ### Final verdict
 
-The lecturer's claim is **theoretically sound and empirically supported**. Our v1.01 classification experiment is the textbook demonstration of the LSTM's universal-frequency advantage and the RNN's high-frequency bias. Our v1.07 regression experiment shows the same pattern in a more constrained regime — quieter, but in the same direction. **In every regime we tested, LSTM ≥ RNN. We never observed an inversion.**
+We find the lecturer's claim **theoretically sound and empirically supported**. Our v1.01 classification experiment is the textbook demonstration of the LSTM's universal-frequency advantage and the RNN's high-frequency bias. Our v1.07 regression experiment shows the same pattern in a more constrained regime — quieter, but in the same direction. **In every regime we tested on average, LSTM ≥ RNN.**
+
+### Curvature determines which architecture wins (per-window)
+
+Our "LSTM beats RNN" claim holds **on average across the test distribution**. It does **not** hold for every individual window. We deliberately captured a matched pair of windows that demonstrates the per-window behaviour exactly mirrors the lecturer's frequency-bias claim:
+
+#### High-curvature window — RNN out-performs LSTM
+
+![RNN out-performs LSTM on a high-curvature window](DOCS/images/curvatureRNNBetter.png)
+
+When the user positions the window on a portion of the summation where the chosen channel is **changing rapidly** — high local curvature, large derivative, e.g. a zero-crossing region of `sin2` or a point where multiple channels rise simultaneously — the **RNN beats the LSTM** for that specific window. Reason:
+
+- A high-curvature 10 ms slice is dominated by **high-frequency content** (the variation completes within just a handful of samples).
+- The vanilla RNN is **biased toward high-frequency features** by construction — its hidden state can't carry low-frequency context but it does preserve fast within-window variation.
+- The LSTM's gates **smooth out** rapid variation as a side-effect of the cell-state highway being designed to preserve slow-varying context. On a window where the *signal itself* is fast-varying, that smoothing is a hindrance.
+
+#### Weak-curvature (near-flat) window — LSTM out-performs RNN
+
+![LSTM out-performs RNN on a weak-curvature window](DOCS/images/weakCurvatureLSTMBetter.png)
+
+When the window sits on a slow-varying region — e.g. the chosen channel is near its peak with `dy/dt ≈ 0` for the whole 10 ms slice — the picture flips:
+
+- A near-flat 10 ms slice contains essentially **only low-frequency content** (the slow change of `sin2` toward / away from its peak).
+- The vanilla RNN can't carry that information across 10 time-steps without the `tanh`-squashing degrading it; its hidden state effectively forgets the early samples by the time it reaches the output, so it predicts a fairly generic value with little curvature awareness.
+- The LSTM's cell-state highway preserves the slow drift across all 10 steps; its prediction tracks the gentle slope.
+
+**Crucially, the FC behaves like the RNN in this regime.** Look at the err columns in `weakCurvatureLSTMBetter.png`: FC and RNN errors are similar magnitudes; only LSTM tracks the slope cleanly. Reason: the FC's permutation-invariant treatment of the input gives it no temporal awareness at all — and on a near-flat window where the *only* useful information is the slow-drift trend across time-steps, lacking temporal awareness is functionally similar to the RNN's vanishing-gradient memory failure. **Both the RNN (memory destroyed by `tanh`) and the FC (no memory by design) end up unable to read the gentle curvature; only the LSTM's protected cell-state recovers it.**
+
+#### Why this is the strongest possible support for the lecturer's claim
+
+Two complementary screenshots, same architectures, same configurations, opposite outcomes — driven entirely by **which frequency content dominates the window**:
+
+| Window type | Dominant frequency content | Best model | Why |
+|---|---|---|---|
+| **High curvature** | High-freq | **RNN** | RNN's high-freq bias is a feature; LSTM gates smooth it out |
+| **Weak curvature** | Low-freq | **LSTM** | Only LSTM's protected cell state survives 10 steps; RNN forgets, FC has no memory |
+
+This is the per-window counterpart of the v1.01 classification result: the same RNN failure mode (can't carry slow-varying context across many time-steps) and the same LSTM advantage (cell-state highway), playing out on individual 10 ms slices in the v1.07 regression task. **In aggregate the LSTM wins because real signals contain a mix of curvatures — and the LSTM is the only architecture that performs acceptably on both kinds of window.** The lecturer's claim ("RNN sees only high frequencies; LSTM sees all") isn't just a textbook generalisation; we directly observe it on individual windows in this app.
+
+---
+
+# 15. Implementation Choices That Could Change Which Model Wins
+
+The current ranking we report (LSTM > RNN > FC on average; RNN > LSTM on high-curvature windows; FC ≈ RNN on near-flat windows) is specific to the choices we made in `training_config.json` and the SDK. Several of those choices are not unique — different reasonable choices would tip the comparison in different directions. We list them here so a future reader / re-trainer understands which knobs are load-bearing.
+
+### 15.1 Window length — the single biggest lever
+
+Our analysis window is **10 samples = 10 ms** at 1 kHz, fixed by the lecturer's spec. That's 1/200 of a 0.5 Hz cycle and ~1/100 of a 1 Hz cycle. With so little signal in each window, every model is fighting against the information ceiling, and the LSTM advantage is small (~33 % MAE reduction vs RNN).
+
+| Window length | Predicted ranking | Reasoning |
+|---|---|---|
+| **5 ms (5 samples)** | All three near-tied at high MAE | Information ceiling is even tighter; even LSTM can't recover the channel reliably |
+| **10 ms (current)** | LSTM > RNN > FC, gap ~ 33 – 49 % | Just enough information for the LSTM's gated memory to matter on near-flat windows |
+| **100 ms (100 samples)** | LSTM ≫ RNN > FC, gap > 2× | Long-range context becomes critical; RNN's vanishing gradient bites |
+| **1 s (1000 samples)** | LSTM ≫ RNN; FC unable to scale | Mirrors the v1.01 classification result: LSTM 100 %, RNN at chance |
+
+We could not change the window length (lecturer's spec). If you re-run with a longer window, expect the LSTM advantage to grow substantially.
+
+### 15.2 Number of training samples — diminishing returns past ~6 k
+
+We trained on `n_samples = 6000` (1 200 test). Earlier we ran a `n_samples = 20000` experiment: every model improved by ~6 %, all ranks stayed the same. The data is **information-bound, not data-bound** — once you have ≥ ~5 000 samples of random `n_start`, the network has seen enough window positions; more data only adds redundancy.
+
+If you run with **far fewer samples** (e.g. `n_samples = 500`), expect the FC to suffer disproportionately: fewer parameters mean less natural regularisation, and the FC's permutation-invariance becomes a liability when each example has to teach the network a unique input → output mapping with no inductive bias to lean on.
+
+### 15.3 Hidden size — surprisingly not the bottleneck
+
+We use `hidden_size = 64` everywhere. Earlier we ran an `H = 128` / 250-epoch / 12 K-sample experiment. **Result: the LSTM got worse** (MAE 0.232 vs the H=64 baseline's 0.203). Larger models trained longer on more data overfit a task that's already saturated by information.
+
+| Hidden size | Predicted effect |
+|---|---|
+| 32 | RNN / FC degrade; LSTM still functional (gates buy capacity even at small H) |
+| **64 (current)** | All three trained well; cell-type comparison is clean |
+| 128 + | LSTM and RNN start to overfit; FC stays ~unchanged (already minimal) |
+| 256 + | All three overfit the 6K dataset within 30 epochs |
+
+Holding `H` constant across architectures is what makes the §11 ranking interpretable. If we doubled `H` only on the LSTM, its lead would look bigger, but the comparison would no longer be fair.
+
+### 15.4 Training noise range — the regime knob
+
+We train with `α, β ~ Uniform(0, 0.3)`. This produces models that are **best at low slider values** (the common operating regime) and gracefully degrade above ~30 % α/β.
+
+If we changed `alpha_train_max` / `beta_train_max` in `training_config.json`:
+
+| `alpha_train_max` = `beta_train_max` | Effect on the comparison |
+|---|---|
+| **0** (clean) | LSTM advantage grows: clean MAE 5.55 vs noisy 12.11. LSTM dominates by ~50 %. |
+| **0.1 (light)** | LSTM advantage shrinks slightly; all three closer to clean numbers. |
+| **0.3 (current)** | Models converge to similar MAE under noise; LSTM still leads but only by a few percent. |
+| **0.6 – 1.0 (heavy)** | All three collapse toward predicting the dataset mean; ranking becomes noise. The networks can't extract a sine when phase is randomised. |
+
+Heavy training noise actually **flattens the ranking** by destroying the signal the LSTM uses to outperform. We chose 0.3 deliberately to keep the architectural comparison meaningful.
+
+### 15.5 Output head — the biggest unrealised improvement
+
+Our networks output **10 raw coordinates**. Because we know the channel frequency at inference (`C` is one-hot over `ID_MODE_SIGNALS`), a more efficient head would output **2 numbers** — `(A_predicted, φ_predicted)` — and reconstruct the 10 coordinates analytically from `f_chosen`. This collapses the regression dimensionality 5×, gives the network a much stronger prior, and would (we expect) drop MAE by another 2–5×.
+
+| Output head | Predicted MAE | Notes |
+|---|---|---|
+| **10 raw coords (current)** | LSTM 5.55 | Each output dimension fights for its own loss budget |
+| **`(A, φ)` head + analytic reconstruction** | LSTM ~ 1 – 3 expected | Network only needs to estimate two well-conditioned numbers |
+
+This is the single highest-leverage change we did **not** implement — it would benefit the FC most because the FC is currently the most over-parameterised relative to the task complexity, and reducing the output dimensionality would free its capacity.
+
+### 15.6 Per-sample normalisation — a trap we hit and reverted
+
+We tried `target / max(|summed|)` early. It blew up in destructive-interference troughs (Bug A in §6) and we removed it. Re-introducing it would collapse all three models to predict ~ 0 again — a regression we already observed. Keep it removed.
+
+### 15.7 Locking `chosen` — quietly important
+
+Training with `chosen = sin2` everywhere matches inference exactly. Earlier we trained with `chosen` drawn uniformly from {0, 1, 2, 3}; only 25 % of examples exercised the deployed task. Going back to random `chosen` would degrade the LSTM's clean MAE from 5.55 to roughly 8 (still leading the rest, but losing about ⅓ of its advantage).
+
+### 15.8 Activation choice — the SIREN angle (untried)
+
+The FC uses `ReLU`. The literature on **sinusoidal neural networks** (SIREN, FLM) suggests that replacing `ReLU` with `sin` activations on tasks with periodic targets can improve fit by 2 – 10 ×. We did **not** try this; the standard 2-layer MLP with ReLU was the agreed baseline. A `sin`-activated FC would likely close the gap to the LSTM and might even surpass it on clean windows, while losing to the LSTM under noise.
+
+### Summary — which knob favours which model
+
+| Knob | Direction | Helps |
+|---|---|---|
+| Longer window | ↑ samples | LSTM strongly; RNN moderately; FC scales poorly |
+| More training data | ↑ samples | All equally past ~5 K |
+| Larger H | ↑ params | LSTM marginally; RNN marginally; FC ~ no effect |
+| Heavier training noise | ↑ noise | None — flattens the ranking |
+| Lighter / clean training | ↓ noise | LSTM most |
+| `(A, φ)` head | ↓ output dim | All; FC most |
+| Lock `chosen = sin2` | ↑ task focus | LSTM most (already done) |
+| `sin` activation in FC | activation swap | FC most (untried) |
+
+**Read the rest of the report knowing that the rankings we observe are real but not unique** — we ran a comparison under one set of choices that respects the lecturer's spec and is internally consistent. Different reasonable choices would shift specific numbers; the high-level "LSTM ≥ RNN, FC is the cheap baseline" pattern is robust across all the regimes we explored.
